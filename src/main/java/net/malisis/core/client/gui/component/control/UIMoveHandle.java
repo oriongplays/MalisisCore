@@ -24,76 +24,87 @@
 
 package net.malisis.core.client.gui.component.control;
 
+import net.malisis.core.client.gui.Anchor;
+import net.malisis.core.client.gui.GuiRenderer;
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.UIComponent;
 import net.malisis.core.client.gui.component.container.UIContainer;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.render.GuiIcon;
-import net.malisis.core.client.gui.render.shape.GuiShape;
+import net.malisis.core.renderer.icon.provider.GuiIconProvider;
 import net.malisis.core.util.MouseButton;
 
 /**
  * @author Ordinastie
  *
  */
-public class UIMoveHandle extends UIComponent implements IControlComponent
+public class UIMoveHandle extends UIComponent<UIMoveHandle> implements IControlComponent
 {
 	public enum Type
 	{
-		BOTH,
-		HORIZONTAL,
-		VERTICAL
+		BOTH, HORIZONTAL, VERTICAL
 	}
 
 	private Type type;
 
-	public UIMoveHandle(UIComponent parent, Type type)
+	public UIMoveHandle(MalisisGui gui, UIComponent<?> parent, Type type)
 	{
+		super(gui);
 		this.type = type != null ? type : Type.BOTH;
 
 		int x = 1;
 		int y = 1;
 		if (parent instanceof UIContainer)
 		{
-			x -= ((UIContainer) parent).padding().left();
-			y -= ((UIContainer) parent).padding().top();
+			x -= ((UIContainer<?>) parent).getLeftPadding();
+			y -= ((UIContainer<?>) parent).getTopPadding();
 		}
-		setPosition(Position.of(x, y));
-		setSize(Size.of(5, 5));
+		setPosition(x, y);
+		setSize(5, 5);
 		setZIndex(10);
+		register(this);
+
 		parent.addControlComponent(this);
 
-		setForeground(GuiShape.builder(this).icon(GuiIcon.MOVE).build());
+		iconProvider = new GuiIconProvider(gui.getGuiTexture().getIcon(268, 15, 15, 15));
 	}
 
-	public UIMoveHandle(UIComponent parent)
+	public UIMoveHandle(MalisisGui gui, UIComponent<?> parent)
 	{
-		this(parent, Type.BOTH);
+		this(gui, parent, Type.BOTH);
 	}
 
 	@Override
-	public boolean onDrag(MouseButton button)
+	public boolean onDrag(int lastX, int lastY, int x, int y, MouseButton button)
 	{
 		if (button != MouseButton.LEFT)
-			return super.onDrag(button);
+			return super.onDrag(lastX, lastY, x, y, button);
 
-		UIComponent parentCont = getParent().getParent();
+		UIComponent<?> parentCont = getParent().getParent();
 		if (parentCont == null)
-			return super.onDrag(button);
+			return super.onDrag(lastX, lastY, x, y, button);
 
-		int px = parent.position().x();
+		int px = parent.getX();
 		if (type == Type.BOTH || type == Type.HORIZONTAL)
-			px = parentCont.mousePosition().x();
-		int py = parent.position().y();
+			px = parentCont.relativeX(x /*- parentCont.getHorizontalPadding()*/);
+		int py = parent.getY();
 		if (type == Type.BOTH || type == Type.VERTICAL)
-			py = parentCont.mousePosition().y();
+			py = parentCont.relativeY(y /*- parentCont.getVerticalPadding()*/);
 		if (px < 0)
 			px = 0;
 		if (py < 0)
 			py = 0;
-		//TODO: check x + w against screen size
 
-		getParent().setPosition(Position.of(px, py));
+		getParent().setPosition(px, py, Anchor.NONE);
 		return true;
 	}
+
+	@Override
+	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{}
+
+	@Override
+	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		renderer.drawShape(shape, rp);
+	}
+
 }

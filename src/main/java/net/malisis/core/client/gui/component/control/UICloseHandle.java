@@ -24,36 +24,54 @@
 
 package net.malisis.core.client.gui.component.control;
 
-import static net.malisis.core.client.gui.element.position.Positions.*;
-
+import net.malisis.core.client.gui.Anchor;
+import net.malisis.core.client.gui.GuiRenderer;
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.element.Padding;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.render.GuiIcon;
-import net.malisis.core.client.gui.render.shape.GuiShape;
+import net.malisis.core.client.gui.component.container.UIContainer;
+import net.malisis.core.renderer.icon.provider.GuiIconProvider;
 
 /**
  * @author Ordinastie
  *
  */
-public class UICloseHandle extends UIComponent implements IControlComponent
+public class UICloseHandle extends UIComponent<UICloseHandle> implements IControlComponent
 {
-	public <T extends UIComponent & ICloseable> UICloseHandle(T parent)
+	public <T extends UIComponent<T> & ICloseable> UICloseHandle(MalisisGui gui, T parent)
 	{
-		Padding padding = Padding.of(parent);
-		setPosition(Position.of(rightAligned(this, -padding.right()), topAligned(this, -padding.top())));
-		setSize(Size.of(5, 5));
-		setZIndex(parent.getZIndex() + 10);
+		super(gui);
+
+		int x = -1;
+		int y = 1;
+		if (parent instanceof UIContainer)
+		{
+			x += ((UIContainer<?>) parent).getRightPadding();
+			y -= ((UIContainer<?>) parent).getTopPadding();
+		}
+		setPosition(x, y, Anchor.RIGHT);
+		setSize(5, 5);
+		setZIndex(10);
+		register(this);
+
 		parent.addControlComponent(this);
 
-		setForeground(GuiShape.builder(this).icon(GuiIcon.CLOSE).build());
+		iconProvider = new GuiIconProvider(gui.getGuiTexture().getIcon(268, 30, 15, 15));
 	}
 
 	@Override
-	public boolean onClick()
+	public boolean onClick(int x, int y)
 	{
 		((ICloseable) getParent()).onClose();
 		return true;
+	}
+
+	@Override
+	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{}
+
+	@Override
+	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		renderer.drawShape(shape, rp);
 	}
 }

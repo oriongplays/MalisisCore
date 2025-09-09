@@ -22,26 +22,38 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.client.gui.render;
+package net.malisis.core.client.gui;
 
 import org.apache.logging.log4j.util.Strings;
 import org.lwjgl.opengl.GL11;
 
-import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.element.IClipable.ClipArea;
+import net.malisis.core.client.gui.component.container.UIContainer;
+import net.malisis.core.client.gui.component.decoration.UITooltip;
+import net.malisis.core.client.gui.element.GuiShape;
+import net.malisis.core.client.gui.element.SimpleGuiShape;
+import net.malisis.core.renderer.MalisisRenderer;
+import net.malisis.core.renderer.RenderParameters;
+import net.malisis.core.renderer.RenderType;
+import net.malisis.core.renderer.element.Face;
+import net.malisis.core.renderer.element.Shape;
+import net.malisis.core.renderer.font.FontOptions;
+import net.malisis.core.renderer.font.MalisisFont;
+import net.malisis.core.renderer.icon.GuiIcon;
+import net.malisis.core.renderer.icon.Icon;
+import net.malisis.core.renderer.icon.provider.IGuiIconProvider;
+import net.malisis.core.renderer.icon.provider.IIconProvider;
 import net.malisis.core.util.Utils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.RenderItem;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.block.model.IBakedModel;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.renderer.vertex.VertexFormat;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextFormatting;
 
@@ -51,41 +63,33 @@ import net.minecraft.util.text.TextFormatting;
  * @author Ordinastie
  *
  */
-public class GuiRenderer
+public class GuiRenderer extends MalisisRenderer<TileEntity>
 {
-	/** Currently used buffer. */
-	public static final BufferBuilder BUFFER = Tessellator.getInstance().getBuffer();
-
 	/** RenderItem used to draw itemStacks. */
 	public static RenderItem itemRenderer = Minecraft.getMinecraft().getRenderItem();
 	/** Current component being drawn. */
-	public UIComponent currentComponent;
+	public UIComponent<?> currentComponent;
 	/** Multiplying factor between GUI size and pixel size. */
 	private int scaleFactor;
 	/** Should the rendering be done according to scaleFactor. */
 	private boolean ignoreScale = false;
+	/** Current X position of the mouse. */
+	public int mouseX;
+	/** Current Y position of the mouse. */
+	public int mouseY;
 	/** Default {@link GuiTexture} to use for current {@link MalisisGui}. */
 	private GuiTexture defaultGuiTexture;
 	/** Currently used {@link GuiTexture}. */
 	private GuiTexture currentTexture;
 
-	/** Progression of current tick. */
-	private float partialTick = 0;
-
-	//	private static GuiShape rectangle = new SimpleGuiShape();
+	private static GuiShape rectangle = new SimpleGuiShape();
 
 	/**
 	 * Instantiates a new {@link GuiRenderer}.
 	 */
 	public GuiRenderer()
 	{
-		//defaultGuiTexture = MalisisGui.VANILLAGUI_TEXTURE;
-		defaultGuiTexture = MalisisGui.VANILLAGUI_TEXTURE;
-	}
-
-	public BufferBuilder getBuffer()
-	{
-		return BUFFER;
+		defaultGuiTexture = new GuiTexture(new ResourceLocation("malisiscore", "textures/gui/gui.png"), 300, 100);
 	}
 
 	/**
@@ -149,122 +153,67 @@ public class GuiRenderer
 		return ignoreScale;
 	}
 
-	public float getPartialTick()
+	/**
+	 * Sets the mouse position and the partial tick.
+	 *
+	 * @param mouseX the mouse x
+	 * @param mouseY the mouse y
+	 * @param partialTicks the partial ticks
+	 */
+	public void set(int mouseX, int mouseY, float partialTicks)
 	{
-		return partialTick;
+		this.mouseX = mouseX;
+		this.mouseY = mouseY;
+		this.partialTick = partialTicks;
 	}
 
-	/**
-	 * Sets up the rendering and start drawing.
-	 *
-	 * @param partialTick the partial ticks
-	 */
-	public void setup(float partialTick)
+	@Override
+	public void prepare(RenderType renderType, double... data)
 	{
-		this.partialTick = partialTick;
+		_initialize();
+		this.renderType = renderType;
+		this.buffer = Tessellator.getInstance().getBuffer();
 
 		currentTexture = null;
 		bindDefaultTexture();
 
-		GlStateManager.pushMatrix();
 		if (ignoreScale)
 		{
+			GlStateManager.pushMatrix();
 			GlStateManager.scale(1F / scaleFactor, 1F / scaleFactor, 1);
 		}
 
-		setupGl();
+		enableBlending();
+		//RenderHelper.enableGUIStandardItemLighting();
+		GlStateManager.enableTexture2D();
+		GlStateManager.disableLighting();
+
 		startDrawing();
 	}
 
-	public void setupGl()
-	{
-		GlStateManager.enableTexture2D();
-		GlStateManager.disableLighting();
-		enableBlending();
-	}
-
-	/**
-	 * Cleans up the rendering and trigger a draw.
-	 */
+	@Override
 	public void clean()
 	{
 		draw();
 
-		GlStateManager.popMatrix();
+		//GlStateManager.enableLighting();
+		//RenderHelper.enableStandardItemLighting();
 		GlStateManager.enableDepth();
+
+		if (ignoreScale)
+			GlStateManager.popMatrix();
+
+		reset();
 	}
 
 	/**
-	 * Checks whether the GUI should be drawn in a batch.
+	 * Next.
 	 */
-	public boolean isBatched()
-	{
-		return false;
-	}
-
-	/**
-	 * Checks if the {@link Tessellator} is currently drawing.
-	 *
-	 * @return true, if is drawing
-	 */
-	public boolean isDrawing()
-	{
-		return BUFFER.isDrawing;
-	}
-
-	public void startDrawing()
-	{
-		startDrawing(GL11.GL_QUADS);
-	}
-
-	/**
-	 * Tells the {@link Tessellator} to start drawing with specified <b>drawMode and specified {@link VertexFormat}.
-	 *
-	 * @param drawMode the draw mode
-	 */
-	public void startDrawing(int drawMode)
-	{
-		if (isBatched())
-			return;
-		draw();
-		BUFFER.begin(drawMode, DefaultVertexFormats.POSITION_TEX_COLOR);
-	}
-
+	@Override
 	public void next()
 	{
-		next(GL11.GL_QUADS);
-	}
-
-	/**
-	 * Triggers a draw and restarts drawing.<br>
-	 * Rebinds the {@link #getDefaultTexture()} if necessary.
-	 */
-	public void next(int drawMode)
-	{
-		draw();
-		startDrawing(drawMode);
-		//bindDefaultTexture();
-	}
-
-	/**
-	 * Triggers a draw.
-	 */
-	public void draw()
-	{
-		if (!isBatched() && isDrawing())
-			Tessellator.getInstance().draw();
-	}
-
-	/**
-	 * Enables the blending for the rendering.
-	 */
-	public void enableBlending()
-	{
-		GlStateManager.enableBlend();
-		GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
-		GlStateManager.alphaFunc(GL11.GL_GREATER, 0.0F);
-		GlStateManager.shadeModel(GL11.GL_SMOOTH);
-		GlStateManager.enableColorMaterial();
+		super.next();
+		bindDefaultTexture();
 	}
 
 	/**
@@ -274,14 +223,10 @@ public class GuiRenderer
 	 */
 	public void bindTexture(GuiTexture texture)
 	{
-		//no change needed
-		if (texture == currentTexture)
+		if (texture == null || texture == currentTexture)
 			return;
 
-		next();
 		Minecraft.getMinecraft().getTextureManager().bindTexture(texture.getResourceLocation());
-		//System.out.println(currentComponent + " // Bound " + texture.getResourceLocation());
-
 		currentTexture = texture;
 	}
 
@@ -293,9 +238,99 @@ public class GuiRenderer
 		bindTexture(defaultGuiTexture);
 	}
 
-	public void forceRebind()
+	/**
+	 * Applies the texture the {@link Shape}.
+	 *
+	 * @param shape the shape
+	 * @param params the parameters
+	 */
+	@Override
+	public void applyTexture(Shape shape, RenderParameters params)
 	{
-		Minecraft.getMinecraft().getTextureManager().bindTexture(currentTexture.getResourceLocation());
+		Icon icon = params != null ? params.icon.get() : null;
+
+		if (icon == null)
+		{
+			IIconProvider iconProvider = getIconProvider(params);
+			if (iconProvider == null)
+				return;
+
+			if (iconProvider instanceof IGuiIconProvider)
+				icon = ((IGuiIconProvider) iconProvider).getIcon(currentComponent);
+			else
+				icon = iconProvider.getIcon();
+		}
+		boolean isGuiIcon = icon instanceof GuiIcon;
+
+		Face[] faces = shape.getFaces();
+		for (int i = 0; i < faces.length; i++)
+			faces[i].setTexture(isGuiIcon ? ((GuiIcon) icon).getIcon(i) : icon, false, false, false);
+	}
+
+	@Override
+	protected IIconProvider getIconProvider(RenderParameters params)
+	{
+		if (params != null && params.iconProvider.get() != null)
+			return params.iconProvider.get();
+
+		if (currentComponent.getIconProvider() != null)
+			return currentComponent.getIconProvider();
+
+		return null;
+	}
+
+	@Override
+	public void applyTexture(Face face, RenderParameters params)
+	{
+		//texture is already applied from the shape
+	}
+
+	/**
+	 * Draws the component to the screen.
+	 *
+	 * @param container the container
+	 * @param mouseX the mouse x
+	 * @param mouseY the mouse y
+	 * @param partialTick the partial tick
+	 */
+	public void drawScreen(UIContainer<?> container, int mouseX, int mouseY, float partialTick)
+	{
+		if (container == null)
+			return;
+
+		set(mouseX, mouseY, partialTick);
+		prepare(RenderType.GUI);
+
+		container.draw(this, mouseX, mouseY, partialTick);
+
+		clean();
+	}
+
+	@Override
+	public void drawShape(Shape shape)
+	{
+		drawShape(shape, null);
+	}
+
+	/**
+	 * Draws a {@link Shape} to the GUI with the specified {@link RenderParameters}.
+	 *
+	 * @param shape the shape
+	 * @param params the params
+	 */
+	public void drawShape(GuiShape shape, RenderParameters params)
+	{
+		if (shape == null)
+			return;
+
+		// move the shape at the right coord on screen
+		shape.translate(currentComponent.screenX(), currentComponent.screenY(), currentComponent.getZIndex());
+		shape.applyMatrix();
+
+		applyTexture(shape, params);
+
+		for (Face face : shape.getFaces())
+			drawFace(face, params);
 	}
 
 	/**
@@ -328,29 +363,122 @@ public class GuiRenderer
 	 */
 	public void drawRectangle(int x, int y, int z, int width, int height, int color, int alpha, boolean relative)
 	{
-		//		if (relative && currentComponent != null)
-		//		{
-		//			x += currentComponent.screenX();
-		//			y += currentComponent.screenY();
-		//			z += currentComponent.getZIndex();
-		//		}
-		//
-		//		rectangle.resetState();
-		//		rectangle.setSize(width, height);
-		//		rectangle.setPosition(x, y);
-		//		rectangle.getFaces()[0].getParameters().colorMultiplier.set(color);
-		//		rectangle.getFaces()[0].getParameters().alpha.set(alpha);
-		//
-		//		GlStateManager.pushMatrix();
-		//		GlStateManager.translate(0, 0, z);
-		//		disableTextures();
-		//
-		//		drawShape(rectangle);
-		//		next();
-		//		enableTextures();
-		//
-		//		GlStateManager.popMatrix();
+		if (relative && currentComponent != null)
+		{
+			x += currentComponent.screenX();
+			y += currentComponent.screenY();
+			z += currentComponent.getZIndex();
+		}
+
+		rectangle.resetState();
+		rectangle.setSize(width, height);
+		rectangle.setPosition(x, y);
+		rectangle.getFaces()[0].getParameters().colorMultiplier.set(color);
+		rectangle.getFaces()[0].getParameters().alpha.set(alpha);
+
+		GlStateManager.pushMatrix();
+		GlStateManager.translate(0, 0, z);
+		disableTextures();
+
+		drawShape(rectangle);
+		next();
+		enableTextures();
+
+		GlStateManager.popMatrix();
 	}
+
+	/**
+	 * Draws a {@link UITooltip} to the screen.
+	 *
+	 * @param tooltip the tooltip
+	 */
+	public void drawTooltip(UITooltip tooltip)
+	{
+		if (tooltip != null)
+		{
+			prepare(RenderType.GUI);
+			startDrawing();
+			tooltip.draw(this, mouseX, mouseY, partialTick);
+			draw();
+			clean();
+		}
+	}
+
+	/**
+	 * Draws text with default {@link MalisisFont} and {@link FontOptions}.
+	 *
+	 * @param text the text
+	 */
+	public void drawText(String text)
+	{
+		drawText(null, text, 0, 0, 0, null, true);
+	}
+
+	/**
+	 * Draws text with default {@link MalisisFont} and {@link FontOptions} at the coordinates relative to {@link #currentComponent}.
+	 *
+	 * @param text the text
+	 * @param x the x
+	 * @param y the y
+	 * @param z the z
+	 */
+	public void drawText(String text, float x, float y, float z)
+	{
+		drawText(null, text, x, y, z, null, true);
+	}
+
+	/**
+	 * Draw text with specified {@link MalisisFont} with {@link FontOptions}.
+	 *
+	 * @param font the font
+	 * @param text the text
+	 * @param options the options
+	 */
+	public void drawText(MalisisFont font, String text, FontOptions options)
+	{
+		drawText(font, text, 0, 0, 0, options, true);
+	}
+
+	/**
+	 * Draws text with specified {@link MalisisFont} with {@link FontOptions} at the coordinates relative to {@link #currentComponent}
+	 *
+	 * @param font the font
+	 * @param text the text
+	 * @param x the x
+	 * @param y the y
+	 * @param z the z
+	 * @param options the options
+	 */
+	@Override
+	public void drawText(MalisisFont font, String text, float x, float y, float z, FontOptions options)
+	{
+		drawText(font, text, x, y, z, options, true);
+	}
+
+	/**
+	 * Draws text with specified {@link MalisisFont} with {@link FontOptions} at the coordinatesp passed.
+	 *
+	 * @param font the font
+	 * @param text the text
+	 * @param x the x
+	 * @param y the y
+	 * @param z the z
+	 * @param options the options
+	 * @param relative true if the coordinates are relative to current component
+	 */
+	public void drawText(MalisisFont font, String text, float x, float y, float z, FontOptions options, boolean relative)
+	{
+		if (relative && currentComponent != null)
+		{
+			x += currentComponent.screenX();
+			y += currentComponent.screenY();
+			z += currentComponent.getZIndex();
+		}
+
+		super.drawText(font, text, x, y, z, options);
+	}
+
+	//#end drawText()
 
 	/**
 	 * Draws an itemStack to the GUI.
@@ -417,12 +545,10 @@ public class GuiRenderer
 		if (itemStack == null || itemStack == ItemStack.EMPTY)
 			return;
 
-		float z = itemRenderer.zLevel;
 		if (relative && currentComponent != null)
 		{
-			x += currentComponent.screenPosition().x();
-			y += currentComponent.screenPosition().y();
-			itemRenderer.zLevel = currentComponent.getZIndex();
+			x += currentComponent.screenX();
+			y += currentComponent.screenY();
 		}
 
 		FontRenderer fontRenderer = itemStack.getItem().getFontRenderer(itemStack);
@@ -449,7 +575,6 @@ public class GuiRenderer
 		RenderHelper.disableStandardItemLighting();
 		//GlStateManager.enableBlend(); //Forge commented blend reenabling
 
-		itemRenderer.zLevel = z;
 		currentTexture = null;
 		bindDefaultTexture();
 		startDrawing();
@@ -460,10 +585,10 @@ public class GuiRenderer
 	 *
 	 * @param itemStack the item stack
 	 */
-	public boolean renderPickedItemStack(ItemStack itemStack)
+	public void renderPickedItemStack(ItemStack itemStack)
 	{
 		if (itemStack == null || itemStack == ItemStack.EMPTY)
-			return false;
+			return;
 
 		int size = itemStack.getCount();
 		String label = null;
@@ -474,9 +599,13 @@ public class GuiRenderer
 		}
 
 		itemRenderer.zLevel = 100;
-		drawItemStack(itemStack, MalisisGui.MOUSE_POSITION.x() - 8, MalisisGui.MOUSE_POSITION.y() - 8, label, null, false);
+		prepare(RenderType.GUI);
+		startDrawing();
+		drawItemStack(itemStack, mouseX - 8, mouseY - 8, label, null, false);
+		draw();
+		itemStack.setCount(size);
 		itemRenderer.zLevel = 0;
-		return true;
+		clean();
 	}
 
 	/**
@@ -486,7 +615,7 @@ public class GuiRenderer
 	 */
 	public void startClipping(ClipArea area)
 	{
-		if (area.noClip())
+		if (area.noClip || area.width() <= 0 || area.height() <= 0)
 			return;
 
 		GL11.glPushAttrib(GL11.GL_SCISSOR_BIT);
@@ -507,10 +636,9 @@ public class GuiRenderer
 	 */
 	public void endClipping(ClipArea area)
 	{
-		if (area.noClip())
+		if (area.noClip || area.width() <= 0 || area.height() <= 0)
 			return;
 
-		next();
 		GL11.glDisable(GL11.GL_SCISSOR_TEST);
 		GL11.glPopAttrib();
 	}

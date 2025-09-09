@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Ordinastie
+ * Copyright (c) 2014 Ordinastie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,25 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.client.gui.component.content;
+package net.malisis.core.client.gui;
 
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.position.Position.IPosition;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Size.ISize;
-
-/**
- * @author Ordinastie
- *
- */
-public interface IContentHolder
+public class Anchor
 {
-	public IContent content();
+	public static int NONE = 0;
+	public static int TOP = 1;
+	public static int BOTTOM = 2;
+	public static int MIDDLE = TOP | BOTTOM;
+	public static int LEFT = 4;
+	public static int RIGHT = 8;
+	public static int CENTER = LEFT | RIGHT;
 
-	public default IPosition contentPosition()
+	public static int horizontal(int anchor)
 	{
-		return content() != null ? content().position() : Position.ZERO;
+		return anchor & 12;
 	}
 
-	public default ISize contentSize()
+	public static int vertical(int anchor)
 	{
-		return content() != null ? content().size() : Size.ZERO;
+		return anchor & 3;
 	}
 }

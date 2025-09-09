@@ -25,10 +25,6 @@
 package net.malisis.core.client.gui.component.control;
 
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.component.content.IContentHolder;
-import net.malisis.core.client.gui.component.scrolling.UIScrollBar;
-import net.malisis.core.client.gui.element.IOffset;
-import net.minecraft.client.gui.GuiScreen;
 
 /**
  * This interface allows scrollbars to be added to the {@link UIComponent} implementer.
@@ -36,16 +32,86 @@ import net.minecraft.client.gui.GuiScreen;
  * @author Ordinastie
  *
  */
-public interface IScrollable extends IContentHolder, IOffset
+public interface IScrollable
 {
-	public default void onScrollbarAdded(UIScrollBar scrollbar)
-	{
+	/**
+	 * Gets the width of the scrollable content. It should count the total content size to be displayed when not clipped.
+	 *
+	 * @return the content width
+	 */
+	public int getContentWidth();
 
-	}
+	/**
+	 * Gets the height of the scrollable content. It should count the total content size to be displayed when not clipped.
+	 *
+	 * @return the content height
+	 */
+	public int getContentHeight();
 
-	public default float getScrollStep()
-	{
-		return (GuiScreen.isCtrlKeyDown() ? 0.125F : 0.025F);
-	}
+	/**
+	 * Gets the offset from 0 to 1 of the scrollable content. Only used for {@link UIScrollBar.Type#HORIZONTAL} scrollbars.
+	 *
+	 * @return the offset x
+	 */
+	public float getOffsetX();
 
+	/**
+	 * Sets the offset from 0 to 1 of the scrollable content. Only used for {@link UIScrollBar.Type#HORIZONTAL} scrollbars.<br>
+	 * Delta is the size taken for the {@link UIScrollBar.Type#VERTICAL} scrollbar if available.
+	 *
+	 * @param offsetX the offset x
+	 * @param delta the delta
+	 */
+	public void setOffsetX(float offsetX, int delta);
+
+	/**
+	 * Gets the offset from 0 to 1 of the scrollable content. Only used for {@link UIScrollBar.Type#VERTICAL} scrollbars.
+	 *
+	 * @return the offset x
+	 */
+	public float getOffsetY();
+
+	/**
+	 * Sets the offset from 0 to 1 of the scrollable content. Only used for {@link UIScrollBar.Type#VERTICAL} scrollbars.<br>
+	 * Delta is the size taken for the {@link UIScrollBar.Type#HORIZONTAL} scrollbar if available.
+	 *
+	 * @param offsetY the offset y
+	 * @param delta the delta
+	 */
+	public void setOffsetY(float offsetY, int delta);
+
+	/**
+	 * Gets the amount of scrolling from 0 to 1, done by one step of the scroll wheel.
+	 *
+	 * @return the scroll step
+	 */
+	public float getScrollStep();
+
+	/**
+	 * Gets the padding for the top.
+	 *
+	 * @return the top padding
+	 */
+	int getTopPadding();
+
+	/**
+	 * Gets the padding for the bottom.
+	 *
+	 * @return the bottom padding
+	 */
+	int getBottomPadding();
+
+	/**
+	 * Gets the padding for the left.
+	 *
+	 * @return the left padding
+	 */
+	int getLeftPadding();
+
+	/**
+	 * Gets the padding for the right.
+	 *
+	 * @return the right padding
+	 */
+	int getRightPadding();
 }

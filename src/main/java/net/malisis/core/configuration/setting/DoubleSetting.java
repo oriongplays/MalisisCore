@@ -24,12 +24,10 @@
 
 package net.malisis.core.configuration.setting;
 
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.container.UIContainer;
 import net.malisis.core.client.gui.component.decoration.UILabel;
 import net.malisis.core.client.gui.component.interaction.UITextField;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Sizes;
 import net.minecraftforge.common.config.Property;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -69,15 +67,12 @@ public class DoubleSetting extends Setting<Double>
 
 	@SideOnly(Side.CLIENT)
 	@Override
-	public UIContainer getComponent()
+	public UIContainer<?> getComponent(MalisisGui gui)
 	{
-		UILabel label = new UILabel(key);
-		textField = new UITextField(writeValue(value));
-		textField.setPosition(Position.rightOf(textField, label, 2));
-		textField.setSize(Size.of(50, 12));
+		UILabel label = new UILabel(gui, key);
+		textField = new UITextField(gui, writeValue(value)).setSize(50, 0).setPosition(label.getWidth() + 2, 0);
 
-		UIContainer container = new UIContainer();
-		container.setSize(Size.of(Sizes.parentWidth(container, 1.0F, 0), 12));
+		UIContainer<?> container = new UIContainer<>(gui, label.getWidth() + 54, 12);
 		container.add(label);
 		container.add(textField);
 

@@ -30,11 +30,12 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 
 import joptsimple.internal.Strings;
-import net.malisis.core.client.gui.render.GuiRenderer;
+import net.malisis.core.client.gui.GuiRenderer;
 import net.malisis.core.util.bbcode.node.BBNode;
 import net.malisis.core.util.bbcode.node.BBRootNode;
 import net.malisis.core.util.bbcode.node.BBTextNode;
 import net.malisis.core.util.bbcode.render.BBCodeRenderer;
+import net.malisis.core.util.bbcode.render.IBBCodeRenderer;
 
 /**
  * @author Ordinastie
@@ -177,9 +178,9 @@ public class BBString
 		renderer.buildLines(lines);
 	}
 
-	public void render(GuiRenderer guiRenderer, int x, int y, int z)
+	public void render(GuiRenderer guiRenderer, int x, int y, int z, IBBCodeRenderer<?> bbcr)
 	{
-		//renderer.render(guiRenderer, x, y, z, bbcr);
+		renderer.render(guiRenderer, x, y, z, bbcr);
 	}
 
 	public String debug(BBNode node, int level)

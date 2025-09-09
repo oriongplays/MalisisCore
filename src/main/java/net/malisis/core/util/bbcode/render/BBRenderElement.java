@@ -26,7 +26,7 @@ package net.malisis.core.util.bbcode.render;
 
 import java.util.EnumSet;
 
-import net.malisis.core.client.gui.render.GuiRenderer;
+import net.malisis.core.client.gui.GuiRenderer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.TextFormatting;
 
@@ -99,8 +99,8 @@ public class BBRenderElement
 	{
 		if (itemStack != null)
 			renderer.drawItemStack(itemStack, x, y);
-		//		else
-		//			renderer.drawText(null, getFormattedText(), x, y, z, null);
+		else
+			renderer.drawText(null, getFormattedText(), x, y, z, null);
 	}
 
 	@Override

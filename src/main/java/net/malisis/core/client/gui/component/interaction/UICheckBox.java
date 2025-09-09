@@ -24,104 +24,121 @@
 
 package net.malisis.core.client.gui.component.interaction;
 
+import org.apache.commons.lang3.StringUtils;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.GL11;
 
+import net.malisis.core.client.gui.GuiRenderer;
+import net.malisis.core.client.gui.MalisisGui;
+import net.malisis.core.client.gui.component.IGuiText;
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.component.content.IContent;
-import net.malisis.core.client.gui.component.content.IContentHolder;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.size.Size;
+import net.malisis.core.client.gui.element.SimpleGuiShape;
 import net.malisis.core.client.gui.event.ComponentEvent.ValueChange;
-import net.malisis.core.client.gui.render.GuiIcon;
-import net.malisis.core.client.gui.render.shape.GuiShape;
-import net.malisis.core.client.gui.text.GuiText;
 import net.malisis.core.renderer.font.FontOptions;
-import net.minecraft.util.text.TextFormatting;
+import net.malisis.core.renderer.font.MalisisFont;
+import net.malisis.core.renderer.icon.provider.GuiIconProvider;
+import net.minecraft.client.renderer.OpenGlHelper;
 
 /**
  * UICheckBox
  *
- * @author Ordinastie
+ * @author PaleoCrafter
  */
-public class UICheckBox extends UIComponent implements IContentHolder
+public class UICheckBox extends UIComponent<UICheckBox> implements IGuiText<UICheckBox>
 {
-	protected final FontOptions fontOptions = FontOptions	.builder()
-															.color(0x444444)
-															.when(this::isHovered)
-															.color(0x777777)
-															.when(this::isDisabled)
-															.color(0xCCCCCC)
-															.build();
-	/** The content for this {@link UICheckBox}. */
-	protected IContent content;
+	/** The {@link MalisisFont} to use for this {@link UICheckBox}. */
+	protected MalisisFont font = MalisisFont.minecraftFont;
+	/** The {@link FontOptions} to use for this {@link UICheckBox}. */
+	protected FontOptions fontOptions = FontOptions.builder().color(0x444444).build();
+	/** Text to draw beside the checkbox. **/
+	private String text;
 	/** Whether this {@link UICheckBox} is checked. */
-	protected boolean checked;
+	private boolean checked;
 
-	public UICheckBox(String text)
+	private GuiIconProvider cbIconProvider;
+
+	public UICheckBox(MalisisGui gui, String text)
 	{
+		super(gui);
 		setText(text);
-		//TODO: height = max(14, heightOfContent) ?
-		setSize(Size.sizeOfContent(this, 15, 4));
 
-		//Background
-		setBackground(GuiShape.builder(this).position(1, 0).size(12, 12).icon(GuiIcon.CHECKBOX_BG).build());
+		shape = new SimpleGuiShape();
 
-		//Foreground
-		GuiShape overlay = GuiShape.builder(this).position(2, 1).size(10, 10).color(0xFFFFFF).alpha(80).build();
-		GuiShape check = GuiShape	.builder(this)
-									.position(1, 1)
-									.size(12, 10)
-									.zIndex(10)
-									.icon(GuiIcon.forComponent(this, GuiIcon.CHECKBOX, GuiIcon.CHECKBOX_HOVER, GuiIcon.CHECKBOX_DISABLED))
-									.build();
-
-		setForeground(r -> {
-			if (isHovered())
-				overlay.render(r);
-			if (isChecked())
-				check.render(r);
-			r.next();
-			if (content() != null)
-				content().render(r);
-		});
+		iconProvider = new GuiIconProvider(	gui.getGuiTexture().getIcon(242, 32, 10, 10),
+											null,
+											gui.getGuiTexture().getIcon(252, 32, 10, 10));
+		cbIconProvider = new GuiIconProvider(	gui.getGuiTexture().getIcon(242, 52, 12, 10),
+												gui.getGuiTexture().getIcon(254, 42, 12, 10),
+												gui.getGuiTexture().getIcon(242, 42, 12, 10));
 	}
 
-	public UICheckBox()
+	public UICheckBox(MalisisGui gui)
 	{
-		this(null);
+		this(gui, null);
 	}
 
 	//#region Getters/Setters
-	/**
-	 * Sets the content for this {@link UICheckBox}.
-	 *
-	 * @param content the content
-	 */
-	public void setContent(IContent content)
-	{
-		this.content = content;
-		content.setParent(this);
-		content.setPosition(Position.of(15, 2));
-	}
-
-	public void setText(String text)
-	{
-		GuiText gt = GuiText.of(text, fontOptions);
-		setContent(gt);
-	}
-
-	/**
-	 * Gets the {@link UIComponent} used as content for this {@link UICheckBox}.
-	 *
-	 * @return the content component
-	 */
 	@Override
-	public IContent content()
+	public MalisisFont getFont()
 	{
-		return content;
+		return font;
+	}
+
+	@Override
+	public UICheckBox setFont(MalisisFont font)
+	{
+		this.font = font;
+		calculateSize();
+		return this;
+	}
+
+	@Override
+	public FontOptions getFontOptions()
+	{
+		return fontOptions;
+	}
+
+	@Override
+	public UICheckBox setFontOptions(FontOptions options)
+	{
+		this.fontOptions = options;
+		calculateSize();
+		return this;
+	}
+
+	/**
+	 * Sets the text for this {@link UICheckBox}.
+	 *
+	 * @param text the new text
+	 */
+	public UICheckBox setText(String text)
+	{
+		this.text = text;
+		calculateSize();
+		return this;
+	}
+
+	/**
+	 * Gets the text for this {@link UICheckBox}.
+	 *
+	 * @return the text
+	 */
+	public String getText()
+	{
+		return text;
 	}
 
 	//#end Getters/Setters
+
+	/**
+	 * Calculates the size for this {@link UICheckBox}.
+	 */
+	private void calculateSize()
+	{
+		int w = StringUtils.isEmpty(text) ? 0 : (int) font.getStringWidth(text, fontOptions);
+		setSize(w + 11, 10);
+	}
+
 	/**
 	 * Checks if this {@link UICheckBox} is checked.
 	 *
@@ -145,7 +162,7 @@ public class UICheckBox extends UIComponent implements IContentHolder
 	}
 
 	@Override
-	public boolean onClick()
+	public boolean onClick(int x, int y)
 	{
 		if (fireEvent(new CheckEvent(this, !checked)))
 			checked = !checked;
@@ -168,15 +185,72 @@ public class UICheckBox extends UIComponent implements IContentHolder
 	}
 
 	@Override
+	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		shape.resetState();
+		shape.setSize(10, 10);
+		shape.setPosition(1, 0);
+		renderer.drawShape(shape, rp);
+
+		renderer.next();
+
+		// draw the white shade over the slot
+		if (hovered)
+		{
+			GL11.glDisable(GL11.GL_TEXTURE_2D);
+			GL11.glEnable(GL11.GL_BLEND);
+			GL11.glDisable(GL11.GL_ALPHA_TEST);
+			OpenGlHelper.glBlendFunc(770, 771, 1, 0);
+			GL11.glShadeModel(GL11.GL_SMOOTH);
+
+			rp.colorMultiplier.set(0xFFFFFF);
+			rp.alpha.set(80);
+			rp.useTexture.set(false);
+
+			shape.resetState();
+			shape.setSize(8, 8);
+			shape.setPosition(2, 1);
+			renderer.drawShape(shape, rp);
+			renderer.next();
+
+			GL11.glShadeModel(GL11.GL_FLAT);
+			GL11.glDisable(GL11.GL_BLEND);
+			GL11.glEnable(GL11.GL_ALPHA_TEST);
+			GL11.glEnable(GL11.GL_TEXTURE_2D);
+		}
+
+		if (!StringUtils.isEmpty(text))
+			renderer.drawText(font, text, 14, 2, 0, fontOptions);
+	}
+
+	@Override
+	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		if (checked)
+		{
+			if (isHovered() && isEnabled())
+				GL11.glEnable(GL11.GL_BLEND);
+			rp.reset();
+			shape.resetState();
+			shape.setSize(12, 10);
+			rp.iconProvider.set(cbIconProvider);
+			renderer.drawShape(shape, rp);
+			renderer.next();
+			if (isHovered() && isEnabled())
+				GL11.glDisable(GL11.GL_BLEND);
+		}
+	}
+
+	@Override
 	public String getPropertyString()
 	{
-		return (checked ? "checked " : "") + "[" + TextFormatting.GREEN + content + TextFormatting.RESET + "] " + super.getPropertyString();
+		return "text=" + text + " | checked=" + this.checked + " | " + super.getPropertyString();
 	}
 
 	/**
 	 * Event fired when a {@link UICheckBox} is checked or unchecked.<br>
 	 * When catching the event, the state is not applied to the {@code UICheckbox} yet.<br>
-	 * Canceling the event will prevent the state to be set for the {@code UICheckbox} .
+	 * Cancelling the event will prevent the state to be set for the {@code UICheckbox} .
 	 */
 	public static class CheckEvent extends ValueChange<UICheckBox, Boolean>
 	{

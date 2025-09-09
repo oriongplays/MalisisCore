@@ -26,49 +26,71 @@ package net.malisis.core.client.gui.component.container;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
-import com.google.common.collect.Maps;
-
+import net.malisis.core.client.gui.ClipArea;
+import net.malisis.core.client.gui.GuiRenderer;
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.component.decoration.UILabel;
-import net.malisis.core.client.gui.component.layout.RowLayout;
-import net.malisis.core.client.gui.element.IClipable;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.render.GuiRenderer;
+import net.malisis.core.client.gui.component.control.UIScrollBar;
+import net.malisis.core.client.gui.event.ComponentEvent.ValueChange;
 
 /**
  * @author Ordinastie
  *
  */
-public class UIListContainer<S> extends UIContainer
+public class UIListContainer<S> extends UIContainer<UIListContainer<S>>
 {
 	protected int elementSpacing = 0;
+	protected boolean unselect = true;
 	protected Collection<S> elements = Collections.emptyList();
-	protected Map<S, UIComponent> componentElements = Maps.newHashMap();
+	protected S selected;
 	protected int lastSize = 0;
-	protected Function<S, UIComponent> elementComponentFactory = e -> new UILabel(Objects.toString(e));
+	protected BiFunction<MalisisGui, S, UIComponent<?>> elementComponentFactory = DefaultElementComponent::new;
+
+	//IScrollable
+	/** Vertical Scrollbar. */
+	protected UIScrollBar scrollbar;
+	/** Y Offset for the contents of this {@link UIListContainer}. */
+	protected int yOffset;
+
 	protected int elementsSize;
 
-	public UIListContainer()
+	public UIListContainer(MalisisGui gui)
 	{
-		setSize(Size.sizeOfContent(this));
+		super(gui);
+		scrollbar = new UIScrollBar(gui, self(), UIScrollBar.Type.VERTICAL);
+		scrollbar.setAutoHide(true);
+	}
+
+	public UIListContainer(MalisisGui gui, int width, int height)
+	{
+		this(gui);
+		setSize(width, height);
+	}
+
+	@Override
+	public UIListContainer<S> setSize(int width, int height)
+	{
+		super.setSize(width, height);
+		scrollbar.updateScrollbar();
+		return self();
 	}
 
 	protected void buildElementComponents()
 	{
 		removeAll();
-		componentElements.clear();
 
-		RowLayout layout = new RowLayout(this, elementSpacing);
+		int y = 0;
 		for (S element : elements)
 		{
-			UIComponent comp = elementComponentFactory.apply(element);
+			UIComponent<?> comp = elementComponentFactory.apply(getGui(), element);
 			comp.attachData(element);
-			layout.add(comp);
-			componentElements.put(element, comp);
+			comp.setPosition(0, y);
+
+			add(comp);
+
+			y += comp.getHeight() + elementSpacing;
 		}
 		elementsSize = elements.size();
 	}
@@ -79,20 +101,15 @@ public class UIListContainer<S> extends UIContainer
 		buildElementComponents();
 	}
 
-	public Collection<S> getElements()
+	public Iterable<S> getElements()
 	{
 		return elements;
 	}
 
-	public UIComponent getElementComponent(S element)
-	{
-		return componentElements.get(element);
-	}
-
-	public UIListContainer<S> setComponentFactory(Function<S, UIComponent> factory)
+	public UIListContainer<S> setComponentFactory(BiFunction<MalisisGui, S, UIComponent<?>> factory)
 	{
 		this.elementComponentFactory = factory;
-		return this;
+		return self();
 	}
 
 	public void setElementSpacing(int elementSpacing)
@@ -100,19 +117,122 @@ public class UIListContainer<S> extends UIContainer
 		this.elementSpacing = elementSpacing;
 	}
 
+	public boolean canUnselect()
+	{
+		return unselect;
+	}
+
+	public void setUnselect(boolean unselect)
+	{
+		this.unselect = unselect;
+	}
+
+	public void setSelected(S comp)
+	{
+		selected = comp;
+	}
+
+	public S getSelected()
+	{
+		return selected;
+	}
+
+	public boolean isSelected(S element)
+	{
+		return element == selected;
+	}
+
+	public S select(S element)
+	{
+		if (!fireEvent(new SelectEvent<>(self(), element)))
+			return getSelected();
+
+		setSelected(element);
+		return element;
+	}
+
 	//#region IClipable
+	/**
+	 * Gets the {@link ClipArea}.
+	 *
+	 * @return the clip area
+	 */
 	@Override
 	public ClipArea getClipArea()
 	{
-		return IClipable.NOCLIP;
+		return new ClipArea(this);
+	}
+
+	/**
+	 * Sets whether this {@link UIContainer} should clip its contents
+	 *
+	 * @param clipContent if true, clip contents
+	 */
+	@Override
+	public void setClipContent(boolean clipContent)
+	{}
+
+	/**
+	 * Checks whether this {@link UIContainer} should clip its contents
+	 *
+	 * @return true, if should clip contents
+	 */
+	@Override
+	public boolean shouldClipContent()
+	{
+		return true;
 	}
 
 	@Override
-	public void render(GuiRenderer renderer)
+	public void draw(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
 	{
 		if (elements.size() != elementsSize)
 			buildElementComponents();
 
-		super.render(renderer);
+		super.draw(renderer, mouseX, mouseY, partialTick);
 	}
+
+	/**
+	 * Event fired when a {@link UIListContainer} changes its selected element.<br>
+	 * Canceling the event will prevent the element to be selected.
+	 */
+	public static class SelectEvent<S> extends ValueChange<UIListContainer<S>, S>
+	{
+		public SelectEvent(UIListContainer<S> component, S selected)
+		{
+			super(component, component.getSelected(), selected);
+		}
+
+		/**
+		 * Gets the new element to be set.
+		 *
+		 * @return the new option
+		 */
+		public S getSelected()
+		{
+			return newValue;
+		}
+	}
+
+	public class DefaultElementComponent extends UIComponent<DefaultElementComponent>
+	{
+		private S element;
+
+		public DefaultElementComponent(MalisisGui gui, S element)
+		{
+			super(gui);
+			this.element = element;
+		}
+
+		@Override
+		public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+		{}
+
+		@Override
+		public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+		{
+			renderer.drawText(element.toString());
+		}
+	}
+
 }

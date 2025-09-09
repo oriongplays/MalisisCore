@@ -24,8 +24,6 @@
 
 package net.malisis.core.configuration;
 
-import static net.malisis.core.client.gui.element.position.Positions.*;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -36,14 +34,14 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.common.eventbus.Subscribe;
 
 import net.malisis.core.IMalisisMod;
+import net.malisis.core.client.gui.Anchor;
 import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.UIComponent;
 import net.malisis.core.client.gui.component.container.UIContainer;
+import net.malisis.core.client.gui.component.container.UIPanel;
+import net.malisis.core.client.gui.component.container.UIWindow;
 import net.malisis.core.client.gui.component.decoration.UILabel;
 import net.malisis.core.client.gui.component.interaction.UIButton;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Sizes;
 import net.malisis.core.client.gui.event.component.StateChangeEvent.HoveredStateChange;
 import net.malisis.core.configuration.setting.Setting;
 import net.malisis.core.renderer.font.FontOptions;
@@ -56,10 +54,11 @@ public class ConfigurationGui extends MalisisGui
 {
 	private IMalisisMod mod;
 	private Settings settings;
-	protected ArrayList<UIContainer> pannels = new ArrayList<>();
-	protected HashMap<UIComponent, Setting<?>> componentSettings = new HashMap<>();
+	protected ArrayList<UIPanel> pannels = new ArrayList<>();
+	protected HashMap<UIComponent<?>, Setting<?>> componentSettings = new HashMap<>();
 
-	protected UIContainer window;
+	protected int windowWidth = 400;
+	protected int windowHeight = 120;
 
 	protected UILabel comment;
 	protected UIButton btnCancel;
@@ -81,35 +80,24 @@ public class ConfigurationGui extends MalisisGui
 			//TODO: build tabs
 		}
 
-		window = UIContainer.window();
-		window.setSize(Size.of(400, 300));
-		UILabel title = new UILabel(mod.getName() + " {malisiscore.config.title}");
-		window.add(title);
+		UIWindow window = new UIWindow(this, mod.getName() + " {malisiscore.config.title}", 400, UIComponent.INHERITED);
 
 		for (String category : categories)
 		{
+			windowHeight = Math.max(windowHeight, (settings.getSettings(category).size() * 14 + 40));
 			window.add(createSettingContainer(category));
 		}
 
 		//window.setSize(windowWidth, windowHeight);
 
-		comment = new UILabel(true);
+		comment = new UILabel(this, true);
 		comment.setFontOptions(FontOptions.builder().color(0xFFFFFF).shadow().build());
-		UIContainer panelComment = UIContainer.panel();
-		panelComment.setPosition(Position.topRight(panelComment));
-		panelComment.setSize(Size.of(140, Sizes.parentHeight(panelComment, 1.0F, -35)));
+		UIPanel panelComment = new UIPanel(this, 140, -35).setPosition(0, 0, Anchor.RIGHT);
+		panelComment.setBackgroundColor(0xCCCCCC);
 		panelComment.add(comment);
 
-		btnCancel = new UIButton("gui.cancel");
-		btnCancel.setPosition(Position.of(centered(btnCancel, -32), middleAligned(btnCancel, 0)));
-		btnCancel.onClick(this::close);
-		btnSave = new UIButton("gui.done");
-		btnSave.setPosition(Position.of(centered(btnSave, 32), middleAligned(btnSave, 0)));
-		btnSave.onClick(() -> {
-			settings.getCategories().forEach((cat) -> settings.getSettings(cat).forEach((setting) -> setting.applySettingFromComponent()));
-			settings.save();
-			close();
-		});
+		btnCancel = new UIButton(this, "gui.cancel").setPosition(-32, 0, Anchor.BOTTOM | Anchor.CENTER).register(this);
+		btnSave = new UIButton(this, "gui.done").setPosition(32, 0, Anchor.BOTTOM | Anchor.CENTER).register(this);
 
 		window.add(panelComment);
 		window.add(btnCancel);
@@ -118,22 +106,21 @@ public class ConfigurationGui extends MalisisGui
 		addToScreen(window);
 	}
 
-	private UIContainer createSettingContainer(String category)
+	private UIContainer<?> createSettingContainer(String category)
 	{
 		List<Setting<?>> categorySettings = settings.getSettings(category);
-		UIContainer container = new UIContainer();
-		container.setPosition(Position.of(5, 12));
-		container.setSize(Size.of(Sizes.parentWidth(container, 1.0F, -105), Sizes.parentHeight(container, 1.0F, -35)));
+		UIContainer<?> container = new UIContainer<>(this, windowWidth - 105, windowHeight - 35).setPosition(5, 12);
 
-		UIComponent last = null;
+		int y = 0;
 		for (Setting<?> setting : categorySettings)
 		{
-			UIComponent component = setting.getComponent();
-			component.setPosition(last != null ? Position.below(component, last, 2) : Position.topLeft(component));
+			UIComponent<?> component = setting.getComponent(this);
+			component.setPosition(0, y);
 			component.register(this);
 			container.add(component);
 			componentSettings.put(component, setting);
-			last = component;
+
+			y += component.getHeight() + 2;
 		}
 
 		return container;
@@ -153,5 +140,18 @@ public class ConfigurationGui extends MalisisGui
 		}
 		else
 			comment.setText("");
+	}
+
+	@Subscribe
+	public void onButtonClick(UIButton.ClickEvent event)
+	{
+		if (event.getComponent() == btnCancel)
+			close();
+		else
+		{
+			settings.getCategories().forEach((cat) -> settings.getSettings(cat).forEach((setting) -> setting.applySettingFromComponent()));
+			settings.save();
+			close();
+		}
 	}
 }

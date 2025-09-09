@@ -302,9 +302,7 @@ public class MalisisRenderer<T extends TileEntity> extends TileEntitySpecialRend
 	 */
 	public void set(T te, float partialTick)
 	{
-		//don't use te.getBlockType() because it can be desynced from world
-		IBlockState state = te.getWorld().getBlockState(te.getPos());
-		set(te.getWorld(), state.getBlock(), te.getPos(), state);
+		set(te.getWorld(), te.getBlockType(), te.getPos(), te.getWorld().getBlockState(te.getPos()));
 		this.partialTick = partialTick;
 		this.tileEntity = te;
 	}
@@ -967,7 +965,6 @@ public class MalisisRenderer<T extends TileEntity> extends TileEntitySpecialRend
 	 * @param z the z
 	 * @param options the options
 	 */
-	@Deprecated
 	public void drawText(MalisisFont font, String text, float x, float y, float z, FontOptions options)
 	{
 		if (font == null)
@@ -975,7 +972,7 @@ public class MalisisRenderer<T extends TileEntity> extends TileEntitySpecialRend
 		if (options == null)
 			options = FontOptions.builder().build();
 
-		//font.render(this, text, x, y, z, options);
+		font.render(this, text, x, y, z, options);
 	}
 
 	/**

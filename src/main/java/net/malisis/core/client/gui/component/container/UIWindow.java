@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2014 Ordinastie
+ * Copyright (c) 2014 PaleoCrafter, Ordinastie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,78 +22,85 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.client.gui.component.decoration;
+package net.malisis.core.client.gui.component.container;
 
+import net.malisis.core.client.gui.Anchor;
+import net.malisis.core.client.gui.ClipArea;
 import net.malisis.core.client.gui.GuiRenderer;
 import net.malisis.core.client.gui.MalisisGui;
-import net.malisis.core.client.gui.component.UIComponent;
+import net.malisis.core.client.gui.component.control.ICloseable;
 import net.malisis.core.client.gui.element.XYResizableGuiShape;
 import net.malisis.core.renderer.icon.provider.GuiIconProvider;
 
 /**
- * @author Ordinastie
- *
+ * @author Ordinastie, PaleoCrafter
  */
-public class UISeparator extends UIComponent<UISeparator>
+public class UIWindow extends UIContainer<UIWindow> implements ICloseable
 {
-	/** Color multiplier. */
-	protected int color = -1;
-	protected boolean vertical;
+	/** Background color multiplier. */
+	protected int backgroundColor = -1;
 
-	public UISeparator(MalisisGui gui, boolean vertical)
+	public UIWindow(MalisisGui gui, String title, int width, int height, int anchor)
 	{
-		super(gui);
-		this.vertical = vertical;
+		super(gui, title, width, height);
+		setPadding(5, 5);
+		this.anchor = anchor;
 
-		shape = new XYResizableGuiShape(1);
-		iconProvider = new GuiIconProvider(gui.getGuiTexture().getXYResizableIcon(200, 15, 15, 15, 3));
-
-		setSize(0, 0);
+		shape = new XYResizableGuiShape();
+		iconProvider = new GuiIconProvider(gui.getGuiTexture().getXYResizableIcon(200, 0, 15, 15, 5));
 	}
 
-	public UISeparator(MalisisGui gui)
+	public UIWindow(MalisisGui gui, String title, int width, int height)
 	{
-		this(gui, false);
+		this(gui, title, width, height, Anchor.CENTER | Anchor.MIDDLE);
 	}
 
-	@Override
-	public UISeparator setSize(int width, int height)
+	public UIWindow(MalisisGui gui, int width, int height)
 	{
-		return super.setSize(vertical ? 1 : width, vertical ? height : 1);
+		this(gui, null, width, height, Anchor.CENTER | Anchor.MIDDLE);
 	}
 
 	/**
-	 * Sets the color for this {@link UISeparator}.
+	 * Sets the background color for {@link UIContainer}.
 	 *
 	 * @param color the color
-	 * @return this {@link UISeparator}
+	 * @return the UI container
 	 */
-	public UISeparator setColor(int color)
+	public UIWindow setBackgroundColor(int color)
 	{
-		this.color = color;
+		this.backgroundColor = color;
 		return this;
 	}
 
 	/**
-	 * Gets the color.
+	 * Gets the background color.
 	 *
-	 * @return the color for this {@link UISeparator}.
+	 * @return the background color for {@link UIContainer}.
 	 */
-	public int getColor()
+	public int getBackgroundColor()
 	{
-		return color;
+		return backgroundColor;
+	}
+
+	@Override
+	public void onClose()
+	{
+		MalisisGui gui = MalisisGui.currentGui();
+		if (gui != null)
+			gui.close();
 	}
 
 	@Override
 	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
 	{
-		rp.useTexture.set(true);
-		rp.alpha.set(255);
-		rp.colorMultiplier.set(getColor());
+		rp.colorMultiplier.set(getBackgroundColor());
 		renderer.drawShape(shape, rp);
 	}
 
 	@Override
-	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
-	{}
+	public ClipArea getClipArea()
+	{
+		return new ClipArea(this, 3);
+	}
+
 }

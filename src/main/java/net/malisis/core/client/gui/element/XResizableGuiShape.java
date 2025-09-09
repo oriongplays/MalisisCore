@@ -24,22 +24,40 @@
 
 package net.malisis.core.client.gui.element;
 
-import net.malisis.core.client.gui.MalisisGui;
-
 /**
- * That interfaces allows implementing classes to handle key strokes within a {@link MalisisGui}.<br>
- * {@link IKeyListener} can be registered with {@link MalisisGui#registerKeyListener(IKeyListener)} so they will always receive key typed.
- *
  * @author Ordinastie
+ *
  */
-public interface IKeyListener
+public class XResizableGuiShape extends GuiShape
 {
-	/**
-	 * Called when a key is typed inside {@link MalisisGui}.
-	 *
-	 * @param keyChar the key char
-	 * @param keyCode the key code
-	 * @return true, to prevent parents and gui to handle the key typed
-	 */
-	public boolean onKeyTyped(char keyChar, int keyCode);
+	protected int sideWidth;
+
+	public XResizableGuiShape(int sideWidth)
+	{
+		super(3);
+		this.sideWidth = sideWidth;
+		storeState();
+	}
+
+	public XResizableGuiShape()
+	{
+		this(5);
+	}
+
+	@Override
+	public void setSize(int w, int h)
+	{
+		w = Math.max(w - 2 * sideWidth, 0);
+
+		faces[0].scale(sideWidth, h, 0);
+		faces[1].scale(w, h, 0);
+		faces[2].scale(sideWidth, h, 0);
+
+		faces[1].translate(sideWidth, 0, 0);
+		faces[2].translate(sideWidth + w, 0, 0);
+	}
+
+	@Override
+	public void scale(float x, float y)
+	{}
 }

@@ -24,51 +24,51 @@
 
 package net.malisis.core.client.gui.component.container;
 
-import static net.malisis.core.client.gui.element.position.Positions.*;
-
+import net.malisis.core.client.gui.Anchor;
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.UISlot;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Size.ISize;
 import net.malisis.core.inventory.MalisisInventory;
-import net.malisis.core.inventory.MalisisSlot;
+import net.malisis.core.inventory.player.PlayerInventorySlot;
 
-public class UIPlayerInventory extends UIInventory
+public class UIPlayerInventory extends UIContainer<UIPlayerInventory>
 {
-	/** Size required for player inventory */
-	public static final ISize INVENTORY_SIZE = Size.of(162, 87);
+	/** Width required for player inventory */
+	public static final int INVENTORY_WIDTH = 162;
+	/** Height required for player inventory (including title) */
+	public static final int INVENTORY_HEIGHT = 87;
 
 	/** {@link MalisisInventory} used for this {@link UIPlayerInventory} **/
-	protected MalisisInventory inventory;
+	@SuppressWarnings("unused")
+	private MalisisInventory inventory;
 
-	public UIPlayerInventory(MalisisInventory inventory)
+	public UIPlayerInventory(MalisisGui gui, MalisisInventory inventory)
 	{
-		super("container.inventory", inventory, 9);
+		super(gui, "container.inventory", INVENTORY_WIDTH, INVENTORY_HEIGHT);
+		this.inventory = inventory;
 
-		setSize(INVENTORY_SIZE);
 		for (int i = 0; i < inventory.getSize(); i++)
-			addSlot(inventory.getSlot(i), i);
+			addSlot(gui, (PlayerInventorySlot) inventory.getSlot(i), i);
 
-		setPosition(Position.of(centered(this, 0), bottomAligned(this, 0)));
+		setPosition(0, 0, Anchor.BOTTOM | Anchor.CENTER);
 	}
 
 	/**
 	 * Creates and adds <code>UISlot</code> into this <code>UIPlayerInventory</code>.
 	 *
+	 * @param gui the gui
 	 * @param slot the slot
 	 * @param number the number
 	 */
-	@Override
-	protected void addSlot(MalisisSlot slot, int number)
+	protected void addSlot(MalisisGui gui, PlayerInventorySlot slot, int number)
 	{
-		UISlot uislot = new UISlot(slot);
+		UISlot uislot = new UISlot(gui, slot);
 		if (number < 9)
-			uislot.setPosition(Position.of(number * 18, 69));
+			uislot.setPosition(number * 18, 69);
 		else if (number < 36)
 		{
 			int row = (number - 9) / 9;
 			int col = number % 9;
-			uislot.setPosition(Position.of(col * 18, 11 + row * 18));
+			uislot.setPosition(col * 18, 11 + row * 18);
 		}
 		else
 			return;

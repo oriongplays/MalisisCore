@@ -24,152 +24,437 @@
 
 package net.malisis.core.client.gui.component.decoration;
 
-import javax.annotation.Nonnull;
+import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
+import com.google.common.collect.Lists;
+import com.google.common.eventbus.Subscribe;
+
+import net.malisis.core.client.gui.GuiRenderer;
+import net.malisis.core.client.gui.MalisisGui;
+import net.malisis.core.client.gui.component.IGuiText;
 import net.malisis.core.client.gui.component.UIComponent;
 import net.malisis.core.client.gui.component.control.IScrollable;
-import net.malisis.core.client.gui.component.scrolling.UIScrollBar;
-import net.malisis.core.client.gui.element.IClipable;
-import net.malisis.core.client.gui.element.position.Position.IPosition;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Size.ISize;
-import net.malisis.core.client.gui.text.GuiText;
+import net.malisis.core.client.gui.component.control.UIScrollBar;
+import net.malisis.core.client.gui.component.control.UIScrollBar.Type;
+import net.malisis.core.client.gui.component.control.UISlimScrollbar;
+import net.malisis.core.client.gui.component.interaction.UITextField;
+import net.malisis.core.client.gui.event.component.ContentUpdateEvent;
+import net.malisis.core.client.gui.event.component.SpaceChangeEvent.SizeChangeEvent;
 import net.malisis.core.renderer.font.FontOptions;
-import net.minecraft.util.text.TextFormatting;
+import net.malisis.core.renderer.font.MalisisFont;
+import net.malisis.core.util.bbcode.BBString;
+import net.malisis.core.util.bbcode.render.BBCodeRenderer;
+import net.malisis.core.util.bbcode.render.IBBCodeRenderer;
+import net.minecraft.client.gui.GuiScreen;
 
 /**
  * UILabel.
  *
  * @author Ordinastie
  */
-public class UILabel extends UIComponent implements IScrollable, IClipable
+public class UILabel extends UIComponent<UILabel> implements IScrollable, IGuiText<UILabel>, IBBCodeRenderer<UILabel>
 {
-	protected final GuiText text;
-	protected boolean autoSize = false;
-	protected final IPosition offset = UIScrollBar.scrollingOffset(this);
+	/** The {@link MalisisFont} to use for this {@link UILabel}. */
+	protected MalisisFont font = MalisisFont.minecraftFont;
+	/** The {@link FontOptions} to use for this {@link UILabel}. */
+	protected FontOptions fontOptions = FontOptions.builder().color(0x444444).build();
+	/** Text of this {@link UILabel}. */
+	protected String text;
+	/** BBCode for this {@link UILabel}. */
+	protected BBString bbText;
+	/** BBCode renderer **/
+	protected BBCodeRenderer bbRenderer;
+	/** List of strings making the text of this {@link UILabel}. */
+	protected List<String> lines = Lists.newArrayList();
+	/** Whether this {@link UITextField} handles multiline text. */
+	protected boolean multiLine = false;
+
+	//text space
+	/** Number of line offset out of this {@link UILabel} when drawn. Always 0 if {@link #multiLine} is false. */
+	protected int lineOffset = 0;
+	/** Space used between each line. */
+	protected int lineSpacing = 1;
+
+	//interaction
+	/** Scrollbar of the textfield **/
+	protected UISlimScrollbar scrollBar;
+
+	/** Width of the text. */
+	protected int textWidth;
+	/** Height of the text. */
+	protected int textHeight;
 
 	/**
 	 * Instantiates a new {@link UILabel}.
 	 *
+	 * @param gui the gui
 	 * @param text the text
-	 * @param multiLine the multiLine
-	 */
-	public UILabel(String text, boolean multiLine)
-	{
-		this.text = GuiText	.builder()
-							.parent(this)
-							.multiLine(multiLine)
-							.literal(false)
-							.translated(true)
-							.text(text)
-							.fontOptions(FontOptions.builder().color(0x444444).build())
-							.wrapSize(() -> autoSize ? 0 : innerSize().width())
-							.build();
-		setAutoSize();
-
-		setForeground(this.text);
-	}
-
-	/**
-	 * Instantiates a new {@link UILabel}.
-	 *
-	 * @param text the text
-	 */
-	public UILabel(String text)
-	{
-		this(text, text.contains("\r") || text.contains("\n"));
-	}
-
-	/**
-	 * Instantiates a new {@link UILabel}.
-	 *
 	 * @param multiLine the multi line
 	 */
-	public UILabel(boolean multiLine)
+	public UILabel(MalisisGui gui, String text, boolean multiLine)
 	{
-		this("", multiLine);
+		super(gui);
+		this.setText(text);
+		this.multiLine = multiLine;
 	}
 
 	/**
 	 * Instantiates a new {@link UILabel}.
+	 *
+	 * @param gui the gui
+	 * @param text the text
 	 */
-	public UILabel()
+	public UILabel(MalisisGui gui, BBString text)
 	{
-		this("", false);
+		this(gui);
+		this.setText(text);
+		this.multiLine = true;
+	}
+
+	/**
+	 * Instantiates a new {@link UILabel}.
+	 *
+	 * @param gui the gui
+	 * @param text the text
+	 */
+	public UILabel(MalisisGui gui, String text)
+	{
+		this(gui, text, false);
+	}
+
+	/**
+	 * Instantiates a new {@link UILabel}.
+	 *
+	 * @param gui the gui
+	 * @param multiLine the multi line
+	 */
+	public UILabel(MalisisGui gui, boolean multiLine)
+	{
+		this(gui, (String) null, multiLine);
+	}
+
+	/**
+	 * Instantiates a new {@link UILabel}.
+	 *
+	 * @param gui the gui
+	 */
+	public UILabel(MalisisGui gui)
+	{
+		this(gui, (String) null, false);
 	}
 
 	// #region getters/setters
-
-	@Override
-	public GuiText content()
+	/**
+	 * Gets the text of this {@link UILabel}.
+	 *
+	 * @return the text
+	 */
+	public String getText()
 	{
 		return text;
 	}
 
-	public void setText(String text)
+	/**
+	 * Sets the text of this {@link UILabel}.<br>
+	 * If {@link #multiLine} is false, the width is recalculated.<br>
+	 * If {@link #multiLine} is true, the {@link #lines} will be recreated.
+	 *
+	 * @param text the text
+	 * @return this {@link UILabel}
+	 */
+	public UILabel setText(String text)
 	{
-		this.text.setText(text);
+		if (text == this.text || (text != null && text.equals(this.text)))
+			return this;
+
+		this.text = text;
+		this.bbText = null;
+		if (multiLine)
+			buildLines();
+		else
+			calculateSize();
+
+		return this;
 	}
 
-	public String getText()
+	/**
+	 * Gets the {@link MalisisFont} used for this {@link UILabel}.
+	 *
+	 * @return the font
+	 */
+	@Override
+	public MalisisFont getFont()
 	{
-		return text.getRawText();
-	}
-
-	public void setFontOptions(FontOptions fontOptions)
-	{
-		text.setFontOptions(fontOptions);
+		return font;
 	}
 
 	@Override
-	public IPosition contentPosition()
+	public UILabel setFont(MalisisFont font)
 	{
-		return text.position();
+		this.font = font;
+		calculateSize();
+		return this;
 	}
 
+	/**
+	 * Gets the {@link FontOptions} used for this {@link UILabel}.
+	 *
+	 * @return the font renderer options
+	 */
 	@Override
-	public ISize contentSize()
+	public FontOptions getFontOptions()
 	{
-		return text.size();
+		return fontOptions;
 	}
 
-	public void setAutoSize()
-	{
-		setSize(Size.sizeOfContent(this, 0, 0));
-		autoSize = true;
-	}
-
+	/**
+	 * Sets the {@link MalisisFont} and {@link FontOptions} to use for this {@link UILabel}.
+	 *
+	 * @param fro the fro
+	 * @return this {@link UILabel}
+	 */
 	@Override
-	public void setSize(@Nonnull ISize size)
+	public UILabel setFontOptions(FontOptions fro)
 	{
-		super.setSize(size);
-		autoSize = false;
+		this.fontOptions = fro;
+		calculateSize();
+		return this;
 	}
 
+	/**
+	 * Gets the font scale for this {@link UILabel}.
+	 *
+	 * @return the font scale
+	 */
 	@Override
-	@Nonnull
-	public ISize size()
+	public float getFontScale()
 	{
-		return size;
+		return fontOptions.getFontScale();
 	}
 
-	@Override
-	public IPosition offset()
-	{
-		return offset;
-	}
 	// #end getters/setters
 
+	//#region IScrollable
 	@Override
-	public ClipArea getClipArea()
+	public int getContentWidth()
 	{
-		return ClipArea.from(this);
+		return getWidth();
+	}
+
+	@Override
+	public int getContentHeight()
+	{
+		return lines.size() * getLineHeight();
+	}
+
+	@Override
+	public float getOffsetX()
+	{
+		return 0;
+	}
+
+	@Override
+	public void setOffsetX(float offsetX, int delta)
+	{}
+
+	@Override
+	public float getOffsetY()
+	{
+		if (lines.size() < getVisibleLines())
+			return 0;
+
+		return (float) lineOffset / (lines.size() - getVisibleLines());
+	}
+
+	@Override
+	public void setOffsetY(float offsetY, int delta)
+	{
+		lineOffset = Math.round(offsetY / getScrollStep());
+		lineOffset = Math.max(0, Math.min(lines.size(), lineOffset));
+	}
+
+	@Override
+	public float getScrollStep()
+	{
+		float step = (float) 1 / (lines.size() - getVisibleLines());
+		return (GuiScreen.isCtrlKeyDown() ? 5 * step : step);
+	}
+
+	@Override
+	public int getLeftPadding()
+	{
+		return 0;
+	}
+
+	@Override
+	public int getRightPadding()
+	{
+		return 0;
+	}
+
+	@Override
+	public int getTopPadding()
+	{
+		return 0;
+	}
+
+	@Override
+	public int getBottomPadding()
+	{
+		return 0;
+	}
+
+	//#end IScrollable
+
+	//#region IBBStringRenderer
+
+	/**
+	 * Gets the BB text of this {@link UILabel}.
+	 *
+	 * @return the BB text
+	 */
+	@Override
+	public BBString getBBText()
+	{
+		return bbText;
+	}
+
+	@Override
+	public UILabel setText(BBString str)
+	{
+		if (!multiLine)
+			throw new IllegalArgumentException("Can only set BBString for multi line labels.");
+
+		setText(str.getRawText());
+		bbText = str;
+		bbText.buildRenderLines(lines);
+
+		return this;
+	}
+
+	@Override
+	public int getStartLine()
+	{
+		return lineOffset;
+	}
+
+	@Override
+	public int getVisibleLines()
+	{
+		return getHeight() / getLineHeight();
+	}
+
+	@Override
+	public int getLineHeight()
+	{
+		return (int) (font.getStringHeight(fontOptions) + lineSpacing);
+	}
+
+	//#end IBBStringRenderer
+
+	/**
+	 * Gets the component at.
+	 *
+	 * @param x the x
+	 * @param y the y
+	 * @return the component at
+	 */
+	@Override
+	public UIComponent<?> getComponentAt(int x, int y)
+	{
+		//make single line label non interactible
+		return multiLine ? super.getComponentAt(x, y) : null;
+	}
+
+	/**
+	 * Builds the lines for this {@link UILabel}. Only used if {@link #multiLine} is true.
+	 */
+	protected void buildLines()
+	{
+		lines.clear();
+
+		if (!StringUtils.isEmpty(text))
+		{
+			UIScrollBar sc = UIScrollBar.getScrollbar(this, Type.VERTICAL);
+			int width = getWidth();
+			if (sc != null && sc.isVisible())
+				width -= sc.getWidth();
+			lines = font.wrapText(text, width, fontOptions);
+		}
+
+		fireEvent(new ContentUpdateEvent<>(this));
+	}
+
+	/**
+	 * Calculate the size of this {@link UILabel}.
+	 */
+	protected void calculateSize()
+	{
+		if (multiLine)
+			return;
+
+		this.textWidth = (int) font.getStringWidth(text, fontOptions);
+		this.textHeight = (int) font.getStringHeight(fontOptions);
+		setSize(textWidth, textHeight);
+	}
+
+	/**
+	 * Draws the background.
+	 *
+	 * @param renderer the renderer
+	 * @param mouseX the mouse x
+	 * @param mouseY the mouse y
+	 * @param partialTick the partial tick
+	 */
+	@Override
+	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{}
+
+	/**
+	 * Draws the foreground.
+	 *
+	 * @param renderer the renderer
+	 * @param mouseX the mouse x
+	 * @param mouseY the mouse y
+	 * @param partialTick the partial tick
+	 */
+	@Override
+	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		if (bbText != null)
+		{
+			bbText.render(renderer, screenX(), screenY(), getZIndex(), this);
+			return;
+		}
+
+		if (multiLine)
+		{
+			font.render(renderer,
+						lines,
+						lineOffset,
+						lineOffset + getVisibleLines(),
+						screenX(),
+						screenY(),
+						getZIndex(),
+						lineSpacing,
+						fontOptions);
+		}
+		else
+			renderer.drawText(font, text, fontOptions);
+	}
+
+	@Subscribe
+	public void onSizeChange(SizeChangeEvent<UILabel> event)
+	{
+		buildLines();
 	}
 
 	@Override
 	public String getPropertyString()
 	{
-		return "[" + TextFormatting.DARK_AQUA + text + TextFormatting.RESET + "] " + super.getPropertyString();
+		return "text=" + text + " | " + super.getPropertyString();
 	}
 
 }

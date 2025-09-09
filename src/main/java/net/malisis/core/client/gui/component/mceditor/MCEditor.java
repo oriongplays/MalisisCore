@@ -24,19 +24,15 @@
 
 package net.malisis.core.client.gui.component.mceditor;
 
-import static net.malisis.core.client.gui.element.position.Positions.*;
-
 import com.google.common.eventbus.Subscribe;
 
+import net.malisis.core.client.gui.Anchor;
 import net.malisis.core.client.gui.MalisisGui;
+import net.malisis.core.client.gui.component.IGuiText;
 import net.malisis.core.client.gui.component.container.UIContainer;
 import net.malisis.core.client.gui.component.interaction.UICheckBox;
 import net.malisis.core.client.gui.component.interaction.UISelect;
 import net.malisis.core.client.gui.component.interaction.UITextField;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Sizes;
-import net.malisis.core.client.gui.element.size.Size.ISize;
 import net.malisis.core.renderer.font.FontOptions;
 import net.malisis.core.renderer.font.MalisisFont;
 import net.minecraft.util.text.TextFormatting;
@@ -45,7 +41,7 @@ import net.minecraft.util.text.TextFormatting;
  * @author Ordinastie
  *
  */
-public class MCEditor extends UIContainer
+public class MCEditor extends UIContainer<MCEditor> implements IGuiText<MCEditor>
 {
 	private UITextField tf;
 	private EcfSelect sel;
@@ -54,26 +50,24 @@ public class MCEditor extends UIContainer
 	private MalisisFont font = MalisisFont.minecraftFont;
 	private FontOptions fontOptions = FontOptions.builder().build();
 
-	public MCEditor()
+	public MCEditor(MalisisGui gui)
 	{
-		super();
-		tf = new UITextField(true);
-		tf.setPosition(Position.of(0, bottomAligned(tf, 0)));
-		tf.setSize(Size.of(Sizes.parentWidth(tf, 1.0F, 0), Sizes.parentHeight(tf, 0.9f, 0)));
+		super(gui);
+		tf = new UITextField(gui, true);
+		tf.setSize(0, -14).setAnchor(Anchor.BOTTOM);
 
-		sel = new EcfSelect(this);
+		sel = new EcfSelect(gui, this);
 
-		cb = new UICheckBox("Use litteral formatting");
-		cb.setPosition(Position.of(85, 0));
-		cb.register(this);
+		cb = new UICheckBox(gui, "Use litteral formatting");
+		cb.setPosition(85, 0).register(this);
 
 		add(tf, sel, cb);
 	}
 
-	public MCEditor(MalisisGui gui, ISize size)
+	public MCEditor(MalisisGui gui, int width, int height)
 	{
-		this();
-		setSize(size);
+		this(gui);
+		setSize(width, height);
 	}
 
 	public UITextField getTextfield()
@@ -87,22 +81,26 @@ public class MCEditor extends UIContainer
 	}
 
 	//#region IGuiText
+	@Override
 	public MalisisFont getFont()
 	{
 		return font;
 	}
 
+	@Override
 	public MCEditor setFont(MalisisFont font)
 	{
 		this.font = font;
 		return this;
 	}
 
+	@Override
 	public FontOptions getFontOptions()
 	{
 		return fontOptions;
 	}
 
+	@Override
 	public MCEditor setFontOptions(FontOptions fro)
 	{
 		this.fontOptions = fro;
@@ -115,6 +113,6 @@ public class MCEditor extends UIContainer
 	public void onChecked(UICheckBox.CheckEvent event)
 	{
 		//tf.getFontOptions().disableECF = event.isChecked();
-		//tf.buildLines();
+		tf.buildLines();
 	}
 }

@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Ordinastie
+ * Copyright (c) 2014 Ordinastie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,51 +22,19 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.client.gui.component.layout;
-
-import static com.google.common.base.Preconditions.*;
+package net.malisis.core.renderer.icon.provider;
 
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.component.container.UIContainer;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.position.Position.IPosition;
+import net.malisis.core.renderer.icon.Icon;
 
 /**
  * @author Ordinastie
  *
  */
-public class RowLayout
+public interface IGuiIconProvider extends IIconProvider
 {
-	protected final UIContainer parent;
-	protected final IPosition offset;
-	protected final int spacing;
-	protected UIComponent last;
-
-	public RowLayout(UIContainer parent, int spacing, IPosition offset)
+	public default Icon getIcon(UIComponent<?> component)
 	{
-		this.parent = checkNotNull(parent);
-		this.offset = offset;
-		this.spacing = spacing;
-	}
-
-	public RowLayout(UIContainer parent)
-	{
-		this(checkNotNull(parent), 0, null);
-	}
-
-	public RowLayout(UIContainer parent, int spacing)
-	{
-		this(checkNotNull(parent), spacing, null);
-	}
-
-	public void add(UIComponent component)
-	{
-		checkNotNull(component);
-		parent.add(component);
-		if (last == null)
-			component.setPosition(offset != null ? offset : Position.topLeft(component));
-		else
-			component.setPosition(Position.below(component, last, spacing));
-		last = component;
+		return getIcon();
 	}
 }

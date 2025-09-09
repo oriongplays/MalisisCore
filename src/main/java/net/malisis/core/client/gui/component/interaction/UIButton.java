@@ -24,139 +24,317 @@
 
 package net.malisis.core.client.gui.component.interaction;
 
-import java.util.function.Supplier;
-
 import org.lwjgl.input.Keyboard;
 
+import net.malisis.core.client.gui.GuiRenderer;
 import net.malisis.core.client.gui.MalisisGui;
+import net.malisis.core.client.gui.component.IGuiText;
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.component.content.IContent;
-import net.malisis.core.client.gui.component.content.IContentHolder;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.position.Position.IPosition;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.render.GuiIcon;
-import net.malisis.core.client.gui.render.shape.GuiShape;
-import net.malisis.core.client.gui.text.GuiText;
+import net.malisis.core.client.gui.component.decoration.UIImage;
+import net.malisis.core.client.gui.component.decoration.UILabel;
+import net.malisis.core.client.gui.component.decoration.UITooltip;
+import net.malisis.core.client.gui.element.XYResizableGuiShape;
+import net.malisis.core.client.gui.event.ComponentEvent;
 import net.malisis.core.renderer.font.FontOptions;
+import net.malisis.core.renderer.font.MalisisFont;
+import net.malisis.core.renderer.icon.GuiIcon;
+import net.malisis.core.renderer.icon.provider.GuiIconProvider;
 import net.malisis.core.util.MouseButton;
 import net.minecraft.init.SoundEvents;
-import net.minecraft.util.text.TextFormatting;
 
 /**
  * UIButton
  *
  * @author Ordinastie, PaleoCrafter
  */
-public class UIButton extends UIComponent implements IContentHolder
+public class UIButton extends UIComponent<UIButton> implements IGuiText<UIButton>
 {
-	/** The {@link FontOptions} to use by default for the {@link UIButton} content. */
-	protected final FontOptions fontOptions = FontOptions	.builder()
-															.color(0xFFFFFF)
-															.shadow()
-															.when(this::isHovered)
-															.color(0xFFFFA0)
-															.when(this::isDisabled)
-															.color(0xCCCCCC)
-															.build();
-
-	protected IPosition offsetPosition = Position.of(() -> isPressed() ? 1 : 0, () -> isPressed() ? 1 : 0);
-	protected IPosition contentPosition = null;
-
-	/** Content used for this {@link UIButton}. */
-	protected IContent content;
+	/** The {@link MalisisFont} to use for this {@link UITooltip}. */
+	protected MalisisFont font = MalisisFont.minecraftFont;
+	/** The {@link FontOptions} to use for this {@link UITooltip}. */
+	protected FontOptions fontOptions = FontOptions.builder().color(0xFFFFFF).shadow().build();
+	/** The {@link FontOptions} to use for this {@link UITooltip} when hovered. */
+	protected FontOptions hoveredFontOptions = FontOptions.builder().color(0xFFFFA0).shadow().build();
+	/** Text used for this {@link UIButton}. Exclusive with {@link #image}. */
+	protected String text;
+	/** Image used for this {@link UIButton}. Exclusive with {@link #text}. */
+	protected UIImage image;
+	/** Whether the size of this {@link UIButton} is automatically calculated based on its contents. */
+	protected boolean autoSize = true;
 	/** Whether this {@link UIButton} is currently being pressed. */
 	protected boolean isPressed = false;
 
-	/** Action to execute when the button is clicked. */
+	/** The background color of this {@link UIButton}. */
+	protected int bgColor = 0xFFFFFF;
+	/** Offset for the contents */
+	protected int offsetX, offsetY;
+
+	protected GuiIconProvider iconPressedProvider;
+
 	protected Runnable action;
 
 	/**
 	 * Instantiates a new {@link UIButton}.
+	 *
+	 * @param gui the gui
 	 */
-	public UIButton()
+	public UIButton(MalisisGui gui)
 	{
-		setAutoSize();
-		setBackground(GuiShape.builder(this).border(5).icon((Supplier<GuiIcon>) () -> {
-			if (isDisabled())
-				return GuiIcon.BUTTON_DISABLED;
-			if (isHovered())
-				return isPressed() ? GuiIcon.BUTTON_HOVER_PRESSED : GuiIcon.BUTTON_HOVER;
-			return GuiIcon.BUTTON;
-		}).build());
-		setForeground(this::content);
+		super(gui);
+
+		shape = new XYResizableGuiShape();
+		iconProvider = new GuiIconProvider(	gui.getGuiTexture().getXYResizableIcon(0, 20, 200, 20, 5),
+											gui.getGuiTexture().getXYResizableIcon(0, 40, 200, 20, 5),
+											gui.getGuiTexture().getXYResizableIcon(0, 0, 200, 20, 5));
+
+		iconPressedProvider = new GuiIconProvider((GuiIcon) gui.getGuiTexture().getXYResizableIcon(0, 40, 200, 20, 5).flip(true, true));
 	}
 
 	/**
-	 * Instantiates a new {@link UIButton} with specified label.
+	 * Instantiates a new {@link UIButton}.
 	 *
+	 * @param gui the gui
 	 * @param text the text
 	 */
-	public UIButton(String text)
+	public UIButton(MalisisGui gui, String text)
 	{
-		this();
+		this(gui);
 		setText(text);
 	}
 
 	/**
-	 * Instantiates a new {@link UIButton} with specified content.
+	 * Instantiates a new {@link UIButton}.
 	 *
-	 * @param content the content
+	 * @param gui the gui
+	 * @param image the image
 	 */
-	public UIButton(UIComponent content)
+	public UIButton(MalisisGui gui, UIImage image)
 	{
-		this();
-		setContent(content);
+		this(gui);
+		setImage(image);
 	}
 
 	//#region Getters/Setters
+	@Override
+	public MalisisFont getFont()
+	{
+		return font;
+	}
+
+	@Override
+	public UIButton setFont(MalisisFont font)
+	{
+		this.font = font;
+		setSize(width, height);
+		return this;
+	}
+
+	@Override
+	public FontOptions getFontOptions()
+	{
+		return fontOptions;
+	}
+
+	@Override
+	public UIButton setFontOptions(FontOptions options)
+	{
+		this.fontOptions = options;
+		setSize(width, height);
+		return this;
+	}
+
 	/**
-	 * Sets the content for this {@link UIButton}.
+	 * Gets the {@link FontOptions} used for this {@link UILabel} when hovered.
 	 *
-	 * @param content the content
+	 * @return the hovered font options
 	 */
-	public void setContent(IContent content)
+	public FontOptions getHoveredFontOptions()
 	{
-		this.content = content;
-		content.setParent(this);
-		content.setPosition(Position.middleCenter(content).plus(offsetPosition));
-	}
-
-	public void setText(String text)
-	{
-		GuiText gt = GuiText.of(text, fontOptions);
-		setContent(gt);
+		return hoveredFontOptions;
 	}
 
 	/**
-	 * Gets the {@link UIComponent} used as content for this {@link UIButton}.
+	 * Sets the {@link FontOptions} used for this {@link UILabel} when hovered.
 	 *
-	 * @return the content component
+	 * @param hoveredOptions the hovered options to set
+	 * @return this {@link UIButton}
+	 */
+	public UIButton setHoveredFontOptions(FontOptions hoveredOptions)
+	{
+		this.hoveredFontOptions = hoveredOptions;
+		return this;
+	}
+
+	/**
+	 * Gets the text of this {@link UIButton}.
+	 *
+	 * @return the text of this {@link UIButton}.
+	 */
+	public String getText()
+	{
+		return text;
+	}
+
+	/**
+	 * Sets the text of this {@link UIButton}.
+	 *
+	 * @param text the text
+	 * @return this {@link UIButton}
+	 */
+	public UIButton setText(String text)
+	{
+		this.text = text;
+		setSize(width, height);
+		image = null;
+		return this;
+	}
+
+	/**
+	 * Gets the {@link UIImage} of this {@link UIButton}.
+	 *
+	 * @return the image
+	 */
+	public UIImage getImage()
+	{
+		return this.image;
+	}
+
+	/**
+	 * Sets the {@link UIImage} for this {@link UIButton}. If a width of 0 was previously set, it will be recalculated for this image.
+	 *
+	 * @param image the image
+	 * @return this {@link UIButton}
+	 */
+	public UIButton setImage(UIImage image)
+	{
+		this.image = image;
+		image.setParent(this);
+		setSize(width, height);
+		text = null;
+		return this;
+	}
+
+	/**
+	 * Sets the width of this {@link UIButton} with a default height of 20px.
+	 *
+	 * @param width the width
+	 * @return this {@link UIButton}
+	 */
+	public UIButton setSize(int width)
+	{
+		return setSize(width, 20);
+	}
+
+	/**
+	 * Sets the size of this {@link UIButton}.
+	 *
+	 * @param width the width
+	 * @param height the height
+	 * @return this {@link UIButton}
 	 */
 	@Override
-	public IContent content()
+	public UIButton setSize(int width, int height)
 	{
-		return content;
+		if (autoSize)
+		{
+			if (image != null)
+			{
+				int w = image.getRawWidth();
+				int h = image.getRawHeight();
+				width = Math.max(width, w + 2);
+				height = Math.max(height, h + 2);
+			}
+			else
+			{
+				int w = (int) font.getStringWidth(text, fontOptions);
+				int h = (int) font.getStringHeight(fontOptions);
+				width = Math.max(width, w + 6);
+				height = Math.max(height, h + 6);
+			}
+		}
+
+		this.width = width;
+		this.height = height;
+
+		return this;
 	}
 
 	/**
-	 * Checks if this {@link UIButton} is currently being pressed.
+	 * Checks if is width is automatically calculated.<br>
+	 * If true, this {@link UIButton} cannot be smaller that its contents.
 	 *
-	 * @return true, if is pressed
+	 * @return the autoWidth
 	 */
-	public boolean isPressed()
+	public boolean isAutoSize()
 	{
-		return isPressed;
+		return autoSize;
 	}
 
 	/**
 	 * Sets whether the size of this {@link UIButton} should be calculated automatically.
 	 *
+	 * @param autoSize the autoSize to set
+	 */
+	public UIButton setAutoSize(boolean autoSize)
+	{
+		this.autoSize = autoSize;
+		setSize(width, height);
+		return this;
+	}
+
+	/**
+	 * Gets the background color of this {@link UIButton}.
+	 *
+	 * @return the bg color
+	 */
+	public int getBgColor()
+	{
+		return bgColor;
+	}
+
+	/**
+	 * Sets the background color of this {@link UIButton}.
+	 *
+	 * @param bgColor the bg color
 	 * @return the UI button
 	 */
-	public UIButton setAutoSize()
+	public UIButton setBgColor(int bgColor)
 	{
-		setSize(Size.sizeOfContent(this, 6, 6));
+		this.bgColor = bgColor;
+		return this;
+	}
+
+	/**
+	 * Gets the text offset of this {@link UIButton}.
+	 *
+	 * @return the text offset x
+	 */
+	public int getOffsetX()
+	{
+		return offsetX;
+	}
+
+	/**
+	 * Gets the text offset of this {@link UIButton}.
+	 *
+	 * @return the text offset y
+	 */
+	public int getOffsetY()
+	{
+		return offsetY;
+	}
+
+	/**
+	 * Sets the text offset of this {@link UIButton}.
+	 *
+	 * @param x the x
+	 * @param y the y
+	 * @return the UI button
+	 */
+	public UIButton setOffset(int x, int y)
+	{
+		offsetX = x;
+		offsetY = y;
 		return this;
 	}
 
@@ -164,11 +342,6 @@ public class UIButton extends UIComponent implements IContentHolder
 	{
 		this.action = action;
 		return this;
-	}
-
-	public FontOptions defaultFontOptions()
-	{
-		return fontOptions;
 	}
 
 	//#end Getters/Setters
@@ -180,26 +353,27 @@ public class UIButton extends UIComponent implements IContentHolder
 	}
 
 	@Override
-	public boolean onClick()
+	public boolean onClick(int x, int y)
 	{
 		executeAction();
+		fireEvent(new ClickEvent(this, x, y));
 		return true;
 	}
 
 	@Override
-	public boolean onButtonPress(MouseButton button)
+	public boolean onButtonPress(int x, int y, MouseButton button)
 	{
 		if (button == MouseButton.LEFT)
 			isPressed = true;
-		return super.onButtonPress(button);
+		return super.onButtonPress(x, y, button);
 	}
 
 	@Override
-	public boolean onButtonRelease(MouseButton button)
+	public boolean onButtonRelease(int x, int y, MouseButton button)
 	{
 		if (button == MouseButton.LEFT)
 			isPressed = false;
-		return super.onButtonRelease(button);
+		return super.onButtonRelease(x, y, button);
 	}
 
 	@Override
@@ -215,9 +389,107 @@ public class UIButton extends UIComponent implements IContentHolder
 	}
 
 	@Override
+	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		if (isPressed && isHovered())
+			rp.iconProvider.set(iconPressedProvider);
+
+		rp.colorMultiplier.set(bgColor);
+		renderer.drawShape(shape, rp);
+	}
+
+	@Override
+	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		int w = 0;
+		int h = 0;
+		if (image != null)
+		{
+			w = image.getWidth();
+			h = image.getHeight();
+		}
+		else
+		{
+			w = (int) font.getStringWidth(text, fontOptions);
+			h = (int) font.getStringHeight(fontOptions);
+		}
+
+		int x = (getWidth() - w) / 2;
+		int y = (getHeight() - h) / 2;
+		if (x == 0)
+			x = 1;
+		if (y == 0)
+			y = 1;
+		if (isPressed && isHovered())
+		{
+			x += 1;
+			y += 1;
+		}
+
+		x += offsetX;
+		y += offsetY;
+
+		if (image != null)
+		{
+			image.setPosition(x, y);
+			image.setZIndex(zIndex);
+			image.draw(renderer, mouseX, mouseY, partialTick);
+		}
+		else
+		{
+			renderer.drawText(font, text, x, y, 0, isHovered() ? hoveredFontOptions : fontOptions);
+		}
+
+	}
+
+	@Override
 	public String getPropertyString()
 	{
-		return "[" + TextFormatting.GREEN + content + TextFormatting.RESET + "] " + super.getPropertyString();
+		return (image != null ? "{" + image + "}" : text) + " | " + super.getPropertyString();
+	}
+
+	/**
+	 * Event fired when a {@link UIButton} is clicked.
+	 */
+	public static class ClickEvent extends ComponentEvent<UIButton>
+	{
+		/** Position of the mouse when clicked . */
+		private int x, y;
+
+		/**
+		 * Instantiates a new {@link ClickEvent}.
+		 *
+		 * @param component the component
+		 * @param x the x coordinate of the mouse
+		 * @param y the y coordinate of the mouse
+		 */
+		public ClickEvent(UIButton component, int x, int y)
+		{
+			super(component);
+			this.x = x;
+			this.y = y;
+		}
+
+		/**
+		 * Gets the x coordinate of the mouse.
+		 *
+		 * @return the x
+		 */
+		public int getX()
+		{
+			return x;
+		}
+
+		/**
+		 * Gets the y coordinate of the mouse.
+		 *
+		 * @return the y
+		 */
+		public int getY()
+		{
+			return y;
+		}
+
 	}
 
 }

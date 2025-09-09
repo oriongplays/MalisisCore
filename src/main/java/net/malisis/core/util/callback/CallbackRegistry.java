@@ -93,7 +93,7 @@ public class CallbackRegistry<C extends ICallback<V>, P extends ICallbackPredica
 	public CallbackResult<V> processCallbacks(Object... params)
 	{
 		if (callbacks.size() == 0)
-			return CallbackResult.noResult();
+			return null;
 
 		CallbackResult<V> result = CallbackResult.noResult();
 		Priority lastPriority = Priority.HIGHEST;

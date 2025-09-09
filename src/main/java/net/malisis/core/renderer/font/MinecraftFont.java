@@ -28,11 +28,13 @@ import java.awt.Font;
 import java.lang.reflect.Field;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.google.common.collect.Maps;
 
 import net.malisis.core.MalisisCore;
 import net.malisis.core.asm.AsmUtils;
-import net.malisis.core.client.gui.render.GuiRenderer;
+import net.malisis.core.renderer.MalisisRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.util.ResourceLocation;
@@ -54,7 +56,7 @@ public class MinecraftFont extends MalisisFont
 	protected Map<Character, CharData> unicodeCharData = Maps.newHashMap();
 	/** Whether the character should drawn with unicode font even if unicode is disabled in MC options. */
 	protected boolean forceUnicode = false;
-	private GuiRenderer renderer;
+	private MalisisRenderer<?> renderer;
 
 	public MinecraftFont()
 	{
@@ -133,14 +135,14 @@ public class MinecraftFont extends MalisisFont
 	}
 
 	@Override
-	protected void prepare(GuiRenderer renderer, float x, float y, float z, FontOptions options)
+	protected void prepare(MalisisRenderer<?> renderer, float x, float y, float z, FontOptions options)
 	{
 		super.prepare(renderer, x, y, z, options);
 		this.renderer = renderer;
 	}
 
 	@Override
-	protected void clean(GuiRenderer renderer, boolean isDrawing)
+	protected void clean(MalisisRenderer<?> renderer, boolean isDrawing)
 	{
 		super.clean(renderer, isDrawing);
 		lastFontTexture = null;
@@ -173,6 +175,18 @@ public class MinecraftFont extends MalisisFont
 	}
 
 	@Override
+	public float getStringWidth(String str, FontOptions options, int start, int end)
+	{
+		if (StringUtils.isEmpty(str))
+			return 0;
+
+		str = processString(str, options);
+		StringWalker walker = new StringWalker(str, this, options);
+		walker.startIndex(start);
+		return walker.walkToCharacter(end);
+	}
+
+	@Override
 	public float getStringHeight(FontOptions options)
 	{
 		return fontRenderer.FONT_HEIGHT * (options != null ? options.getFontScale() : 1);
@@ -185,9 +199,8 @@ public class MinecraftFont extends MalisisFont
 
 		public MCCharData(char c)
 		{
-			//§ => &
 			super(c == '\u00a7' ? '&' : c, 0, 0, 0);
-			this.pos = CHARLIST.indexOf(this.c);
+			this.pos = CHARLIST.indexOf(c);
 		}
 
 		@Override

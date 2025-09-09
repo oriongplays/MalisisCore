@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Ordinastie
+ * Copyright (c) 2014 Ordinastie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,21 +22,47 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.client.gui.render;
+package net.malisis.core.client.gui.component;
+
+import net.malisis.core.client.gui.MalisisGui;
+import net.malisis.core.renderer.font.FontOptions;
+import net.malisis.core.renderer.font.MalisisFont;
 
 /**
+ * Defines a {@link UIComponent} that uses text to be rendered on the {@link MalisisGui}.
+ *
  * @author Ordinastie
  *
  */
-public interface IGuiRenderer
+public interface IGuiText<T>
 {
-	public void render(GuiRenderer renderer);
+	/**
+	 * Gets the {@link MalisisFont}.
+	 *
+	 * @return the font
+	 */
+	public MalisisFont getFont();
 
-	public default IGuiRenderer and(IGuiRenderer other)
-	{
-		return other == null ? this : r -> {
-			render(r);
-			other.render(r);
-		};
-	}
+	/**
+	 * Sets the {@link MalisisFont}.
+	 *
+	 * @param font the new font
+	 * @return the t
+	 */
+	public T setFont(MalisisFont font);
+
+	/**
+	 * Gets the {@link FontOptions}.
+	 *
+	 * @return the font options
+	 */
+	public FontOptions getFontOptions();
+
+	/**
+	 * Sets the {@link FontOptions}.
+	 *
+	 * @param fontOptions the font options
+	 * @return the t
+	 */
+	public T setFontOptions(FontOptions fontOptions);
 }

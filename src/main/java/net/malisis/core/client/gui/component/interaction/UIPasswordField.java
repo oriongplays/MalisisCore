@@ -1,9 +1,8 @@
 package net.malisis.core.client.gui.component.interaction;
 
-import java.util.function.Function;
-
 import org.lwjgl.input.Keyboard;
 
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.event.ComponentEvent;
 import net.minecraft.client.gui.GuiScreen;
 
@@ -21,20 +20,23 @@ public class UIPasswordField extends UITextField
 
 	/**
 	 * Instantiates a new {@link UIPasswordField}.
+	 *
+	 * @param gui the gui
 	 */
-	public UIPasswordField()
+	public UIPasswordField(MalisisGui gui)
 	{
-		super();
+		super(gui, null, false);
 	}
 
 	/**
 	 * Instantiates a new {@link UIPasswordField}
 	 *
+	 * @param gui the gui
 	 * @param passwordChar the password char
 	 */
-	public UIPasswordField(char passwordChar)
+	public UIPasswordField(MalisisGui gui, char passwordChar)
 	{
-		this();
+		this(gui);
 		this.passwordChar = passwordChar;
 	}
 
@@ -61,8 +63,6 @@ public class UIPasswordField extends UITextField
 	@Override
 	public String getText()
 	{
-		if (password == null)
-			return "";
 		return password.toString();
 	}
 
@@ -73,7 +73,6 @@ public class UIPasswordField extends UITextField
 	{
 		this.text.setLength(0);
 		this.text.append(password.toString().replaceAll("(?s).", String.valueOf(passwordChar)));
-		guiText.setText(text.toString());
 	}
 
 	/**
@@ -87,19 +86,19 @@ public class UIPasswordField extends UITextField
 		if (selectingText)
 			deleteSelectedText();
 
-		final StringBuilder oldText = this.password;
-		final String oldValue = oldText.toString();
-		String newValue = oldText.insert(this.cursor.index, text).toString();
+		int position = cursorPosition.textPosition;
+		String oldValue = password.toString();
+		String newValue = new StringBuilder(oldValue).insert(position, text).toString();
 
-		if (this.filterFunction != null)
-			newValue = this.filterFunction.apply(newValue);
+		if (!validateText(newValue))
+			return;
 
 		if (!fireEvent(new ComponentEvent.ValueChange<>(this, oldValue, newValue)))
 			return;
 
-		this.password = new StringBuilder(newValue);
-		this.updateText();
-		this.cursor.jumpBy(text.length());
+		password.insert(position, text);
+		cursorPosition.jumpBy(text.length());
+		updateText();
 	}
 
 	/**
@@ -110,25 +109,15 @@ public class UIPasswordField extends UITextField
 	@Override
 	public void setText(String text)
 	{
-		if (password == null) //called from parent ctor
+		if (!validateText(text))
 			return;
-		if (filterFunction != null)
-			text = filterFunction.apply(text);
 
 		password.setLength(0);
 		password.append(text);
-		updateText();
 		selectingText = false;
 		if (focused)
-			cursor.jumpToEnd();
-
-	}
-
-	@Override
-	public void setFilter(Function<String, String> filterFunction)
-	{
-		this.filterFunction = filterFunction;
-		this.password = new StringBuilder(this.filterFunction.apply(this.password.toString()));
+			cursorPosition.jumpToEnd();
+		updateText();
 	}
 
 	/**
@@ -140,13 +129,13 @@ public class UIPasswordField extends UITextField
 		if (!selectingText)
 			return;
 
-		int start = Math.min(selectionCursor.index, cursor.index);
-		int end = Math.max(selectionCursor.index, cursor.index);
+		int start = Math.min(selectionPosition.textPosition, cursorPosition.textPosition);
+		int end = Math.max(selectionPosition.textPosition, cursorPosition.textPosition);
 
 		password.delete(start, end);
-		updateText();
 		selectingText = false;
-		cursor.jumpTo(start);
+		cursorPosition.jumpTo(start);
+		updateText();
 	}
 
 	/**
@@ -159,11 +148,5 @@ public class UIPasswordField extends UITextField
 	protected boolean handleCtrlKeyDown(int keyCode)
 	{
 		return GuiScreen.isCtrlKeyDown() && !(keyCode == Keyboard.KEY_C || keyCode == Keyboard.KEY_X) && super.handleCtrlKeyDown(keyCode);
-	}
-
-	@Override
-	public String getPropertyString()
-	{
-		return password + " > " + super.getPropertyString();
 	}
 }

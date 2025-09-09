@@ -26,6 +26,9 @@ package net.malisis.core.client.gui.component.mceditor;
 
 import java.util.Arrays;
 
+import com.google.common.base.Function;
+
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.interaction.UISelect;
 import net.minecraft.util.text.TextFormatting;
 
@@ -37,23 +40,33 @@ public class EcfSelect extends UISelect<TextFormatting>
 {
 	private MCEditor editor;
 
-	public EcfSelect(MCEditor editor)
+	public EcfSelect(MalisisGui gui, MCEditor editor)
 	{
-		super(80, Arrays.asList(TextFormatting.values()));
+		super(gui, 80);
 		this.editor = editor;
-		setStringFunction(tf -> tf + tf.getFriendlyName());
+
+		labelFunction = new Function<TextFormatting, String>()
+		{
+			@Override
+			public String apply(TextFormatting input)
+			{
+				return input.toString() + input.getFriendlyName();
+			}
+		};
+
+		setOptions(Arrays.asList(TextFormatting.values()));
 	}
 
 	@Override
-	public void setSelected(TextFormatting option)
+	public void setSelectedOption(Option<TextFormatting> option)
 	{
-		editor.getTextfield().addText(option.toString());
+		editor.getTextfield().addText(option.getKey().toString());
 	}
 
 	@Override
-	public boolean onClick()
+	public boolean onClick(int x, int y)
 	{
-		super.onClick();
+		super.onClick(x, y);
 		if (!expanded)
 			editor.getTextfield().setFocused(true);
 		return true;

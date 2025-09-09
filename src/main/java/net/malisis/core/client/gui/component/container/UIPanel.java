@@ -22,66 +22,85 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.client.gui.component.decoration;
+package net.malisis.core.client.gui.component.container;
 
+import net.malisis.core.client.gui.ClipArea;
 import net.malisis.core.client.gui.GuiRenderer;
 import net.malisis.core.client.gui.MalisisGui;
-import net.malisis.core.client.gui.component.UIComponent;
 import net.malisis.core.client.gui.element.XYResizableGuiShape;
+import net.malisis.core.renderer.animation.transformation.ITransformable;
 import net.malisis.core.renderer.icon.provider.GuiIconProvider;
 
-/**
- * @author Ordinastie
- *
- */
-public class UISeparator extends UIComponent<UISeparator>
+public class UIPanel extends UIContainer<UIPanel> implements ITransformable.Color
 {
-	/** Color multiplier. */
-	protected int color = -1;
-	protected boolean vertical;
+	/** Background color multiplier. */
+	protected int backgroundColor = -1;
 
-	public UISeparator(MalisisGui gui, boolean vertical)
+	public UIPanel(MalisisGui gui)
 	{
 		super(gui);
-		this.vertical = vertical;
+		setPadding(3, 3);
 
-		shape = new XYResizableGuiShape(1);
-		iconProvider = new GuiIconProvider(gui.getGuiTexture().getXYResizableIcon(200, 15, 15, 15, 3));
-
-		setSize(0, 0);
+		shape = new XYResizableGuiShape(5);
+		iconProvider = new GuiIconProvider(gui.getGuiTexture().getXYResizableIcon(200, 15, 15, 15, 5));
 	}
 
-	public UISeparator(MalisisGui gui)
+	public UIPanel(MalisisGui gui, int width, int height)
 	{
-		this(gui, false);
+		this(gui);
+		setSize(width, height);
 	}
 
-	@Override
-	public UISeparator setSize(int width, int height)
+	public UIPanel(MalisisGui gui, String title)
 	{
-		return super.setSize(vertical ? 1 : width, vertical ? height : 1);
+		this(gui);
+		setTitle(title);
+	}
+
+	public UIPanel(MalisisGui gui, String title, int width, int height)
+	{
+		this(gui);
+		setTitle(title);
+		setSize(width, height);
 	}
 
 	/**
-	 * Sets the color for this {@link UISeparator}.
+	 * Sets the background color for {@link UIContainer}.
 	 *
 	 * @param color the color
-	 * @return this {@link UISeparator}
+	 * @return the UI container
 	 */
-	public UISeparator setColor(int color)
+	public UIPanel setBackgroundColor(int color)
 	{
-		this.color = color;
+		this.backgroundColor = color;
 		return this;
 	}
 
 	/**
-	 * Gets the color.
+	 * Gets the background color.
 	 *
-	 * @return the color for this {@link UISeparator}.
+	 * @return the background color for {@link UIContainer}.
 	 */
-	public int getColor()
+	public int getBackgroundColor()
 	{
-		return color;
+		return backgroundColor;
+	}
+
+	/**
+	 * Sets the background color of this {@link UIContainer}.
+	 *
+	 * @param color the new color
+	 */
+	@Override
+	public void setColor(int color)
+	{
+		setBackgroundColor(color);
+	}
+
+	@Override
+	public ClipArea getClipArea()
+	{
+		return new ClipArea(this, 1);
 	}
 
 	@Override
@@ -89,11 +108,8 @@ public class UISeparator extends UIComponent<UISeparator>
 	{
 		rp.useTexture.set(true);
 		rp.alpha.set(255);
-		rp.colorMultiplier.set(getColor());
+		rp.colorMultiplier.set(getBackgroundColor() != 0x404040 ? getBackgroundColor() : -1);
 		renderer.drawShape(shape, rp);
+		renderer.next();
 	}
-
-	@Override
-	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
-	{}
 }

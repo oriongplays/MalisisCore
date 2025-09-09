@@ -28,15 +28,8 @@ package net.malisis.core.util.cacheddata;
  * @author Ordinastie
  *
  */
-public interface ICachedData<T>
+public interface ICachedData
 {
-	/**
-	 * Gets the current value of the data
-	 *
-	 * @return the t
-	 */
-	public T get();
-
 	/**
 	 * Checks if data has changed.
 	 *

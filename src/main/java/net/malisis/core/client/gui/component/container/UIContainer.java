@@ -31,25 +31,20 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.eventbus.Subscribe;
 
+import net.malisis.core.client.gui.Anchor;
+import net.malisis.core.client.gui.ClipArea;
+import net.malisis.core.client.gui.GuiRenderer;
 import net.malisis.core.client.gui.MalisisGui;
+import net.malisis.core.client.gui.component.IClipable;
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.component.content.IContent;
 import net.malisis.core.client.gui.component.control.ICloseable;
+import net.malisis.core.client.gui.component.control.IControlComponent;
 import net.malisis.core.client.gui.component.control.IScrollable;
-import net.malisis.core.client.gui.component.scrolling.UIScrollBar;
-import net.malisis.core.client.gui.element.IClipable;
-import net.malisis.core.client.gui.element.Padding;
-import net.malisis.core.client.gui.element.Padding.IPadded;
-import net.malisis.core.client.gui.element.position.Position;
-import net.malisis.core.client.gui.element.position.Position.IPosition;
-import net.malisis.core.client.gui.element.size.Size.ISize;
+import net.malisis.core.client.gui.component.decoration.UILabel;
 import net.malisis.core.client.gui.event.component.ContentUpdateEvent;
 import net.malisis.core.client.gui.event.component.SpaceChangeEvent;
 import net.malisis.core.client.gui.event.component.StateChangeEvent.VisibleStateChange;
-import net.malisis.core.client.gui.render.GuiIcon;
-import net.malisis.core.client.gui.render.GuiRenderer;
-import net.malisis.core.client.gui.render.IGuiRenderer;
-import net.malisis.core.client.gui.render.shape.GuiShape;
+import net.minecraft.client.gui.GuiScreen;
 
 /**
  * {@link UIContainer} are the base for components holding other components.<br>
@@ -58,86 +53,278 @@ import net.malisis.core.client.gui.render.shape.GuiShape;
  * Keyboard event are passed to all the children.
  *
  * @author Ordinastie, PaleoCrafter
+ * @param <T> type of UIContainer
  */
-public class UIContainer extends UIComponent implements IClipable, IScrollable, ICloseable, IPadded
+public class UIContainer<T extends UIContainer<T>> extends UIComponent<T> implements IClipable, IScrollable, ICloseable
 {
-	protected ContainerContent content = new ContainerContent();
-
-	/** Padding used by this {@link UIContainer}.? */
-	protected Padding padding = Padding.NO_PADDING;
-
+	/** List of {@link UIComponent} inside this {@link UIContainer}. */
+	protected final Set<UIComponent<?>> components;
+	/** Top padding to apply to this {@link UIContainer}. */
+	private int topPadding;
+	/** Bottom padding to apply to this {@link UIContainer}. */
+	private int bottomPadding;
+	/** Left padding to apply to this {@link UIContainer}. */
+	private int leftPadding;
+	/** Right padding to apply to this {@link UIContainer}. */
+	private int rightPadding;
+	/** Label for the title of this {@link UIContainer}. */
+	protected UILabel titleLabel;
 	//IClipable
 	/** Determines whether this {@link UIContainer} should clip its contents to its drawn area. */
 	protected boolean clipContent = true;
+	//IScrollable
+	/** Width of the contents of this {@link UIContainer}. */
+	protected int contentWidth;
+	/** Height of the contents of this {@link UIContainer}. */
+	protected int contentHeight;
+	/** X Offset for the contents of this {@link UIContainer} from 0 to 1. */
+	protected int xOffset;
+	/** Y Offset for the contents of this {@link UIContainer} from 0 to 1. */
+	protected int yOffset;
 
-	protected final IPosition offset = UIScrollBar.scrollingOffset(this);
+	/**
+	 * Default constructor, creates the components list.
+	 *
+	 * @param gui the gui
+	 */
+	public UIContainer(MalisisGui gui)
+	{
+		super(gui);
+		components = new LinkedHashSet<>();
+		titleLabel = new UILabel(gui);
+	}
 
 	/**
 	 * Instantiates a new {@link UIContainer}.
+	 *
+	 * @param gui the gui
+	 * @param title the title
 	 */
-	public UIContainer()
+	public UIContainer(MalisisGui gui, String title)
 	{
-		//titleLabel = new UILabel();
-		setForeground(content);
+		this(gui);
+		setTitle(title);
 	}
 
-	@Override
-	public ContainerContent content()
+	/**
+	 * Instantiates a new {@link UIContainer}.
+	 *
+	 * @param gui the gui
+	 * @param width the width
+	 * @param height the height
+	 */
+	public UIContainer(MalisisGui gui, int width, int height)
 	{
-		return content;
+		this(gui);
+		setSize(width, height);
+	}
+
+	/**
+	 * Instantiates a new {@link UIContainer}.
+	 *
+	 * @param gui the gui
+	 * @param title the title
+	 * @param width the width
+	 * @param height the height
+	 */
+	public UIContainer(MalisisGui gui, String title, int width, int height)
+	{
+		this(gui);
+		setTitle(title);
+		setSize(width, height);
 	}
 
 	// #region getters/setters
+	/**
+	 * Sets the visible.
+	 *
+	 * @param visible the visible
+	 * @return the t
+	 */
 	@Override
-	public void setVisible(boolean visible)
+	public T setVisible(boolean visible)
 	{
+		if (isVisible() == visible)
+			return self();
+
 		super.setVisible(visible);
-		content.setVisible(visible);
+		if (!visible)
+		{
+			for (UIComponent<?> c : components)
+			{
+				c.setHovered(false);
+				c.setFocused(false);
+			}
+		}
+		return self();
 	}
 
+	/**
+	 * Sets the disabled.
+	 *
+	 * @param enabled the disabled
+	 * @return the t
+	 */
 	@Override
-	public void setEnabled(boolean enabled)
+	public T setEnabled(boolean enabled)
 	{
 		super.setEnabled(enabled);
-		content.setEnabled(enabled);
+		if (enabled)
+		{
+			for (UIComponent<?> c : components)
+			{
+				c.setHovered(false);
+				c.setFocused(false);
+			}
+		}
+		return self();
 	}
 
 	/**
 	 * Set the padding for this {@link UIContainer}.
 	 *
-	 * @param padding the padding
+	 * @param horizontalPadding the padding to apply to left and right
+	 * @param verticalPadding the padding to apply to top and bottom
 	 */
-	public void setPadding(Padding padding)
+	public T setPadding(int horizontalPadding, int verticalPadding)
 	{
-		this.padding = padding;
+		this.leftPadding = horizontalPadding;
+		this.rightPadding = horizontalPadding;
+		this.topPadding = verticalPadding;
+		this.bottomPadding = verticalPadding;
+		return self();
 	}
 
 	@Override
-	public Padding padding()
+	public int getTopPadding()
 	{
-		return padding;
+		return this.topPadding;
+	}
+
+	public T setTopPadding(int topPadding)
+	{
+		this.topPadding = topPadding;
+		return self();
 	}
 
 	@Override
-	public IPosition contentPosition()
+	public int getBottomPadding()
 	{
-		return Position.ZERO;
+		return this.bottomPadding;
+	}
+
+	public T setBottomPadding(int bottomPadding)
+	{
+		this.bottomPadding = bottomPadding;
+		return self();
 	}
 
 	@Override
-	public IPosition offset()
+	public int getLeftPadding()
 	{
-		return offset;
+		return this.leftPadding;
+	}
+
+	public T setLeftPadding(int leftPadding)
+	{
+		this.leftPadding = leftPadding;
+		return self();
+	}
+
+	@Override
+	public int getRightPadding()
+	{
+		return this.rightPadding;
+	}
+
+	public T setRightPadding(int rightPadding)
+	{
+		this.rightPadding = rightPadding;
+		return self();
+	}
+
+	/**
+	 * Sets the title for {@link UIContainer}.<br>
+	 * Creates a {@link UILabel} and adds it inside {@link UIContainer}.
+	 *
+	 * @param title the title
+	 * @return the UI container
+	 */
+	public T setTitle(String title)
+	{
+		if (title == null || title == "")
+		{
+			remove(titleLabel);
+			return self();
+		}
+
+		titleLabel.setText(title);
+		add(titleLabel);
+		return self();
+	}
+
+	/**
+	 * Gets the title.
+	 *
+	 * @return the title for this {@link UIContainer}.
+	 */
+	public String getTitle()
+	{
+		return titleLabel != null ? titleLabel.getText() : null;
 	}
 
 	// #end getters/setters
+
+	/**
+	 * Gets the relative position of the specified {@link UIComponent} inside this {@link UIContainer}.
+	 *
+	 * @param component the component
+	 * @return the coordinate
+	 */
+	@Override
+	public int componentX(UIComponent<?> component)
+	{
+		int x = super.componentX(component);
+		int a = Anchor.horizontal(component.getAnchor());
+		if (a == Anchor.LEFT || a == Anchor.NONE)
+			x += getLeftPadding();
+		else if (a == Anchor.RIGHT)
+			x -= getRightPadding();
+
+		if (!(component instanceof IControlComponent))
+			x -= xOffset;
+
+		return x;
+	}
+
+	/**
+	 * Gets the relative position of the specified {@link UIComponent} inside this {@link UIContainer}.
+	 *
+	 * @param component the component
+	 * @return the coordinate
+	 */
+	@Override
+	public int componentY(UIComponent<?> component)
+	{
+		int y = super.componentY(component);
+		int a = Anchor.vertical(component.getAnchor());
+		if (a == Anchor.TOP || a == Anchor.NONE)
+			y += getTopPadding();
+		else if (a == Anchor.BOTTOM)
+			y -= getBottomPadding();
+
+		if (!(component instanceof IControlComponent))
+			y -= yOffset;
+		return y;
+	}
+
 	/**
 	 * Gets the {@link UIComponent} matching the specified name.
 	 *
 	 * @param name the name
 	 * @return the component
 	 */
-	public UIComponent getComponent(String name)
+	public UIComponent<?> getComponent(String name)
 	{
 		return getComponent(name, false);
 	}
@@ -150,12 +337,12 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 * @param recursive if true, look inside child {@code UIContainer}
 	 * @return the component
 	 */
-	public UIComponent getComponent(String name, boolean recursive)
+	public UIComponent<?> getComponent(String name, boolean recursive)
 	{
 		if (StringUtils.isEmpty(name))
 			return null;
 
-		for (UIComponent c : content.components)
+		for (UIComponent<?> c : components)
 		{
 			if (name.equals(c.getName()))
 				return c;
@@ -164,11 +351,11 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 		if (!recursive)
 			return null;
 
-		for (UIComponent c : content.components)
+		for (UIComponent<?> c : components)
 		{
 			if (c instanceof UIContainer)
 			{
-				UIComponent found = getComponent(name, true);
+				UIComponent<?> found = getComponent(name, true);
 				if (found != null)
 					return found;
 			}
@@ -186,24 +373,19 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 * @return the child component in this {@link UIContainer}, this {@link UIContainer} if none, or null if outside its bounds.
 	 */
 	@Override
-	public UIComponent getComponentAt(int x, int y)
+	public UIComponent<?> getComponentAt(int x, int y)
 	{
-		if (!isEnabled() || !isVisible())
-			return null;
-
-		//super impl will return control components or itself
-		//control components take precedence over child components
-		UIComponent superComp = super.getComponentAt(x, y);
+		UIComponent<?> superComp = super.getComponentAt(x, y);
 		if (superComp != null && superComp != this)
 			return superComp;
 
-		if (shouldClipContent() && !getClipArea().isInside(x, y))
-			return superComp;
+		if (!isEnabled() || !isVisible())
+			return null;
 
-		Set<UIComponent> list = new LinkedHashSet<>();
-		for (UIComponent c : content.components)
+		Set<UIComponent<?>> list = new LinkedHashSet<>();
+		for (UIComponent<?> c : components)
 		{
-			UIComponent component = c.getComponentAt(x, y);
+			UIComponent<?> component = c.getComponentAt(x, y);
 			if (component != null)
 				list.add(component);
 		}
@@ -211,12 +393,18 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 		if (list.size() == 0)
 			return superComp;
 
-		UIComponent component = superComp;
-		for (UIComponent c : list)
+		UIComponent<?> component = superComp;
+		for (UIComponent<?> c : list)
 		{
 			if (component != null && (component.getZIndex() <= c.getZIndex()))
 				component = c;
 		}
+
+		//		if (component instanceof IClipable && ((IClipable) component).shouldClipContent())
+		//			return component;
+
+		if (shouldClipContent() && !getClipArea().isInside(x, y))
+			return null;
 
 		return component != null && component.isEnabled() ? component : superComp;
 	}
@@ -226,15 +414,41 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 */
 	public void onContentUpdate()
 	{
-		content.updateSize();
-		fireEvent(new ContentUpdateEvent<>(this));
+		calculateContentSize();
+		fireEvent(new ContentUpdateEvent<>(self()));
+	}
+
+	/**
+	 * Calculates content size.
+	 */
+	public void calculateContentSize()
+	{
+		int contentWidth = 0;
+		int contentHeight = 0;
+
+		for (UIComponent<?> c : components)
+		{
+			if (c.isVisible())
+			{
+				contentWidth = Math.max(contentWidth, c.parentX() + c.getWidth() + xOffset);
+				contentHeight = Math.max(contentHeight, c.parentY() + c.getHeight() + yOffset);
+			}
+		}
+
+		this.contentHeight = contentHeight + getBottomPadding();
+		this.contentWidth = contentWidth + getRightPadding();
 	}
 
 	//#region IClipable
+	/**
+	 * Gets the {@link ClipArea}.
+	 *
+	 * @return the clip area
+	 */
 	@Override
 	public ClipArea getClipArea()
 	{
-		return shouldClipContent() ? ClipArea.from(this) : IClipable.NOCLIP;
+		return new ClipArea(this);
 	}
 
 	/**
@@ -242,6 +456,7 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 *
 	 * @param clipContent if true, clip contents
 	 */
+	@Override
 	public void setClipContent(boolean clipContent)
 	{
 		this.clipContent = clipContent;
@@ -252,6 +467,7 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 *
 	 * @return true, if should clip contents
 	 */
+	@Override
 	public boolean shouldClipContent()
 	{
 		return clipContent;
@@ -259,18 +475,67 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 
 	//#end IClipable
 
+	//#region IScrollable
+	@Override
+	public int getContentWidth()
+	{
+		return contentWidth;
+	}
+
+	@Override
+	public int getContentHeight()
+	{
+		return contentHeight;
+	}
+
+	@Override
+	public float getOffsetX()
+	{
+		if (getContentWidth() < getWidth())
+			return 0;
+		return (float) xOffset / (getContentWidth() - getWidth());
+	}
+
+	@Override
+	public void setOffsetX(float offsetX, int delta)
+	{
+		this.xOffset = Math.round((getContentWidth() - getWidth() + delta) * offsetX);
+	}
+
+	@Override
+	public float getOffsetY()
+	{
+		if (getContentHeight() < getHeight())
+			return 0;
+		return (float) yOffset / (getContentHeight() - getHeight());
+	}
+
+	@Override
+	public void setOffsetY(float offsetY, int delta)
+	{
+		this.yOffset = Math.round((getContentHeight() - getHeight() + delta) * offsetY);
+	}
+
+	@Override
+	public float getScrollStep()
+	{
+		return (GuiScreen.isCtrlKeyDown() ? 0.125F : 0.025F);
+	}
+
+	//#end IScrollable
+
 	/**
 	 * Adds components to this {@link UIContainer}.
 	 *
 	 * @param components the components
 	 */
-	public void add(UIComponent... components)
+	public void add(UIComponent<?>... components)
 	{
-		for (UIComponent component : components)
+		for (UIComponent<?> component : components)
 		{
-			if (component != null && component != this)
+			if (component != null)
 			{
-				content.components.add(component);
+				this.components.add(component);
 				component.setParent(this);
 				component.register(this);
 			}
@@ -283,12 +548,12 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 *
 	 * @param component the component
 	 */
-	public void remove(UIComponent component)
+	public void remove(UIComponent<?> component)
 	{
 		if (component.getParent() != this)
 			return;
 
-		content.components.remove(component);
+		components.remove(component);
 		component.setParent(null);
 		component.unregister(this);
 		onContentUpdate();
@@ -299,25 +564,54 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 */
 	public void removeAll()
 	{
-		for (UIComponent component : content.components)
+		for (UIComponent<?> component : components)
 			component.setParent(null);
-		content.components.clear();
+		components.clear();
 		onContentUpdate();
 	}
 
 	@Override
-	public void onAddedToScreen(MalisisGui gui)
+	public void onAddedToScreen()
 	{
-		this.gui = gui;
-		for (UIComponent component : content.components)
-			component.onAddedToScreen(gui);
+		super.onAddedToScreen();
+		for (UIComponent<?> component : components)
+			component.onAddedToScreen();
 	}
 
 	@Override
 	public void onClose()
 	{
 		if (getParent() instanceof UIContainer)
-			((UIContainer) getParent()).remove(this);
+			((UIContainer<?>) getParent()).remove(this);
+	}
+
+	/**
+	 * Draws the background.
+	 *
+	 * @param renderer the renderer
+	 * @param mouseX the mouse x
+	 * @param mouseY the mouse y
+	 * @param partialTick the partial tick
+	 */
+	@Override
+	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+
+	}
+
+	/**
+	 * Draws the foreground.
+	 *
+	 * @param renderer the renderer
+	 * @param mouseX the mouse x
+	 * @param mouseY the mouse y
+	 * @param partialTick the partial tick
+	 */
+	@Override
+	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		for (UIComponent<?> c : components)
+			c.draw(renderer, mouseX, mouseY, partialTick);
 	}
 
 	/**
@@ -326,7 +620,7 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 * @param event the event
 	 */
 	@Subscribe
-	public void onComponentStateChange(VisibleStateChange<UIContainer> event)
+	public void onComponentStateChange(VisibleStateChange<T> event)
 	{
 		onContentUpdate();
 	}
@@ -337,144 +631,8 @@ public class UIContainer extends UIComponent implements IClipable, IScrollable, 
 	 * @param event the event
 	 */
 	@Subscribe
-	public void onComponentSpaceChange(SpaceChangeEvent<UIContainer> event)
+	public void onComponentSpaceChange(SpaceChangeEvent<T> event)
 	{
 		onContentUpdate();
-	}
-
-	@Override
-	public String getPropertyString()
-	{
-		return super.getPropertyString() + " | O : " + offset;
-	}
-
-	/**
-	 * Creates a centered {@link UIContainer} with a window background and a padding of 5.
-	 *
-	 * @return the UI container
-	 */
-	public static UIContainer window()
-	{
-		UIContainer container = new UIContainer();
-		container.setName("Window");
-		container.setBackground(GuiShape.builder(container).icon(GuiIcon.WINDOW).border(5).build());
-		container.setPosition(Position.middleCenter(container));
-		container.setPadding(Padding.of(5));
-		return container;
-	}
-
-	/**
-	 * Creates a {@link UIContainer} with a Panel background and a padding of 3.
-	 *
-	 * @return the UI container
-	 */
-	public static UIContainer panel()
-	{
-		UIContainer container = new UIContainer();
-		container.setName("Panel");
-		container.setBackground(GuiShape.builder(container).icon(GuiIcon.PANEL).border(3).build());
-		container.setPadding(Padding.of(3));
-		return container;
-	}
-
-	/**
-	 * Creates a {@link UIContainer} with a Box background and a padding of 1.
-	 *
-	 * @return the UI container
-	 */
-	public static UIContainer box()
-	{
-		UIContainer container = new UIContainer();
-		container.setName("box");
-		container.setBackground(GuiShape.builder(container).icon(GuiIcon.BOX).border(1).build());
-		container.setPadding(Padding.of(1));
-		return container;
-	}
-
-	public class ContainerContent implements IContent, IGuiRenderer, ISize
-	{
-		/** List of {@link UIComponent} inside this {@link UIContainer}. */
-		protected final Set<UIComponent> components = new LinkedHashSet<>();
-		protected int width;
-		protected int height;
-
-		@Override
-		public void setParent(UIComponent parent)
-		{}
-
-		@Override
-		public UIContainer getParent()
-		{
-			return UIContainer.this;
-		}
-
-		@Override
-		public void setPosition(IPosition position)
-		{}
-
-		@Override
-		public IPosition position()
-		{
-			return Position.ZERO;
-		}
-
-		@Override
-		public ISize size()
-		{
-			return this;
-		}
-
-		private void updateSize()
-		{
-			width = components.stream().filter(UIComponent::isVisible).mapToInt(c -> c.position().x() + c.size().width()).max().orElse(0)
-					- padding().left();
-			height = components.stream().filter(UIComponent::isVisible).mapToInt(c -> c.position().y() + c.size().height()).max().orElse(0)
-					- padding().top();
-		}
-
-		@Override
-		public int width()
-		{
-			return width;
-		}
-
-		@Override
-		public int height()
-		{
-			return height;
-		}
-
-		public void setVisible(boolean visible)
-		{
-			if (isVisible() == visible)
-				return;
-
-			if (!visible)
-			{
-				for (UIComponent c : components)
-				{
-					c.setHovered(false);
-					c.setFocused(false);
-				}
-			}
-		}
-
-		public void setEnabled(boolean enabled)
-		{
-			if (!enabled)
-			{
-				for (UIComponent c : components)
-				{
-					c.setHovered(false);
-					c.setFocused(false);
-				}
-			}
-		}
-
-		@Override
-		public void render(GuiRenderer renderer)
-		{
-			components.forEach(c -> c.render(renderer));
-		}
 	}
 }

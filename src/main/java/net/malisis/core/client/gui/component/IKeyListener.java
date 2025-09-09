@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2017 Ordinastie
+ * Copyright (c) 2014 Ordinastie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,35 +22,24 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.util.cacheddata;
+package net.malisis.core.client.gui.component;
+
+import net.malisis.core.client.gui.MalisisGui;
 
 /**
- * @author Ordinastie
+ * That interfaces allows implementing classes to handle key strokes within a {@link MalisisGui}.<br>
+ * {@link IKeyListener} can be registered with {@link MalisisGui#registerKeyListener(IKeyListener)} so they will always receive key typed.
  *
+ * @author Ordinastie
  */
-
-public class FixedData<T> implements ICachedData<T>
+public interface IKeyListener
 {
-	private final T data;
-
-	public FixedData(T data)
-	{
-		this.data = data;
-	}
-
-	@Override
-	public T get()
-	{
-		return data;
-	}
-
-	@Override
-	public void update()
-	{}
-
-	@Override
-	public boolean hasChanged()
-	{
-		return false;
-	}
+	/**
+	 * Called when a key is typed inside {@link MalisisGui}.
+	 *
+	 * @param keyChar the key char
+	 * @param keyCode the key code
+	 * @return true, to prevent parents and gui to handle the key typed
+	 */
+	public boolean onKeyTyped(char keyChar, int keyCode);
 }

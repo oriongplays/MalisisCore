@@ -24,17 +24,19 @@
 
 package net.malisis.core.util.bbcode.gui;
 
+import net.malisis.core.client.gui.GuiRenderer;
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.decoration.UILabel;
-import net.malisis.core.client.gui.component.interaction.UITextArea;
+import net.malisis.core.client.gui.component.interaction.UITextField;
 import net.malisis.core.client.gui.event.ComponentEvent;
-import net.malisis.core.client.gui.render.GuiRenderer;
 import net.malisis.core.util.bbcode.BBString;
+import net.malisis.core.util.bbcode.render.IBBCodeRenderer;
 
 /**
  * @author Ordinastie
  *
  */
-public class BBTextField extends UITextArea
+public class BBTextField extends UITextField implements IBBCodeRenderer<BBTextField>
 {
 	protected BBCodeEditor editor;
 	/** BBCode for this {@link UILabel} */
@@ -42,27 +44,30 @@ public class BBTextField extends UITextArea
 
 	protected boolean isWysiwyg = true;
 
-	public BBTextField(BBCodeEditor editor, BBString bbText)
+	public BBTextField(MalisisGui gui, BBCodeEditor editor, BBString bbText)
 	{
+		super(gui, true);
 		this.editor = editor;
 		setText(bbText);
 	}
 
-	public BBTextField(BBCodeEditor editor, String text)
+	public BBTextField(MalisisGui gui, BBCodeEditor editor, String text)
 	{
-		this(editor, new BBString(text));
+		this(gui, editor, new BBString(text));
 	}
 
-	public BBTextField(BBCodeEditor editor)
+	public BBTextField(MalisisGui gui, BBCodeEditor editor)
 	{
-		this(editor, new BBString(""));
+		this(gui, editor, new BBString(""));
 	}
 
+	@Override
 	public BBString getBBText()
 	{
 		return bbText;
 	}
 
+	@Override
 	public BBTextField setText(BBString str)
 	{
 		bbText = str != null ? str : new BBString();
@@ -70,6 +75,12 @@ public class BBTextField extends UITextArea
 		setText(bbText.getRawText());
 
 		return this;
+	}
+
+	@Override
+	public float getFontScale()
+	{
+		return fontOptions.getFontScale();
 	}
 
 	public boolean isWysiwyg()
@@ -88,6 +99,20 @@ public class BBTextField extends UITextArea
 	}
 
 	@Override
+	public int getStartLine()
+	{
+		return lineOffset;
+	}
+
+	@Override
+	public void buildLines()
+	{
+		super.buildLines();
+		if (isWysiwyg())
+			bbText.buildRenderLines(lines);
+	}
+
+	@Override
 	public void addText(String str)
 	{
 		if (!isWysiwyg())
@@ -99,7 +124,7 @@ public class BBTextField extends UITextArea
 		if (selectingText)
 			deleteSelectedText();
 
-		int position = getCursorPosition().index();
+		int position = getCursorPosition().getPosition();
 
 		String oldValue = bbText.getText();
 		bbText.addText(str, position);
@@ -110,6 +135,7 @@ public class BBTextField extends UITextArea
 
 		text.setLength(0);
 		text.append(bbText.getRawText());
+		buildLines();
 
 		getCursorPosition().jumpBy(str.length());
 
@@ -127,8 +153,8 @@ public class BBTextField extends UITextArea
 		if (!selectingText)
 			return;
 
-		int sp = getSelectionPosition().index();
-		int cp = getCursorPosition().index();
+		int sp = getSelectionPosition().getPosition();
+		int cp = getCursorPosition().getPosition();
 		int start = Math.min(sp, cp);
 		int end = Math.max(sp, cp);
 
@@ -140,6 +166,7 @@ public class BBTextField extends UITextArea
 
 		text.setLength(0);
 		text.append(bbText.getRawText());
+		buildLines();
 
 		selectingText = false;
 		getCursorPosition().jumpTo(start);
@@ -147,9 +174,9 @@ public class BBTextField extends UITextArea
 
 	public void addTag(BBCodeEditor.Tag tag)
 	{
-		int p = getCursorPosition().index();
-		int sp = getSelectionPosition().index();
-		int cp = getCursorPosition().index();
+		int p = getCursorPosition().getPosition();
+		int sp = getSelectionPosition().getPosition();
+		int cp = getCursorPosition().getPosition();
 		int start = Math.min(sp, cp);
 		int end = Math.max(sp, cp);
 
@@ -171,16 +198,18 @@ public class BBTextField extends UITextArea
 			selectWord();
 
 		bbText.insertNode(tag.node.copy(), start, end);
+		buildLines();
 
 		getCursorPosition().jumpTo(p);
 		selectingText = false;
 	}
 
+	@Override
 	public void drawText(GuiRenderer renderer)
 	{
-		//		if (!isWysiwyg())
-		//			super.drawText(renderer);
-		//		else
-		//			bbText.render(renderer, 2, 2, 0, this);
+		if (!isWysiwyg())
+			super.drawText(renderer);
+		else
+			bbText.render(renderer, 2, 2, 0, this);
 	}
 }

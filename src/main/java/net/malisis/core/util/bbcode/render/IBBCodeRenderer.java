@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2018 Ordinastie
+ * Copyright (c) 2014 Ordinastie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +22,29 @@
  * THE SOFTWARE.
  */
 
-package net.malisis.core.client.gui.component.content;
+package net.malisis.core.util.bbcode.render;
 
-import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.element.IChild;
-import net.malisis.core.client.gui.element.position.Position.IPosition;
-import net.malisis.core.client.gui.element.position.Position.IPositioned;
-import net.malisis.core.client.gui.element.size.Size.ISized;
-import net.malisis.core.client.gui.render.IGuiRenderer;
+import net.malisis.core.util.bbcode.BBString;
 
 /**
  * @author Ordinastie
  *
  */
-public interface IContent extends IPositioned, ISized, IGuiRenderer, IChild<UIComponent>
+public interface IBBCodeRenderer<T>
 {
-	public void setParent(UIComponent parent);
+	public T setText(BBString text);
 
-	public void setPosition(IPosition position);
+	public BBString getBBText();
 
+	public int getWidth();
+
+	public int getHeight();
+
+	public int getStartLine();
+
+	public int getVisibleLines();
+
+	public float getFontScale();
+
+	public int getLineHeight();
 }

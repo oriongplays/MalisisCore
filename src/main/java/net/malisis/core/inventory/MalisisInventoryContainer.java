@@ -115,9 +115,9 @@ public class MalisisInventoryContainer extends Container
 	/** ItemStack currently picked and following the cursor. */
 	protected ItemStack pickedItemStack = ItemStack.EMPTY;
 	/** Cache for the itemStack currently picked. */
-	protected CachedItemStack pickedItemStackCache = new CachedItemStack(() -> ItemUtils.copy(pickedItemStack));
+	protected CachedItemStack pickedItemStackCache = new CachedItemStack(() -> pickedItemStack);
 	/** Stack size when dragging started. */
-	protected ItemStack draggedItemStack = null;
+	protected int draggedAmount = 0;
 	/** The dragged slots. */
 	protected Set<MalisisSlot> draggedSlots = new HashSet<>();
 	/** Type drag action. Can be DRAG_TYPE_SPREAD, DRAG_TYPE_ONE or DRAG_TYPE_PICKUP. Set to -1 if not currently dragging. */
@@ -680,8 +680,8 @@ public class MalisisInventoryContainer extends Container
 	 */
 	private ItemStack handleDrag(ActionType action, MalisisSlot slot)
 	{
-		//the picked itemStack can have size 0 when dragging, so don't return when draggedAmount is set
-		if (pickedItemStack.isEmpty() && draggedItemStack == null)
+		//the picked itemStack can have size 0, so we can't check isEmpty()
+		if (pickedItemStack == ItemStack.EMPTY)
 			return ItemStack.EMPTY;
 
 		if ((action == DRAG_START_LEFT_CLICK || action == DRAG_START_RIGHT_CLICK) && isDraggingItemStack())
@@ -721,12 +721,13 @@ public class MalisisInventoryContainer extends Container
 				}
 			}
 
+			if (pickedItemStack.isEmpty())
+				setPickedItemStack(ItemStack.EMPTY);
+
 			resetDrag();
 
 			if (!pickedItemStack.isEmpty())
 				pickedItemStack.shrink(amountMerged);
-			if (pickedItemStack.isEmpty())
-				setPickedItemStack(ItemStack.EMPTY);
 
 			return pickedItemStack;
 		}
@@ -758,34 +759,34 @@ public class MalisisInventoryContainer extends Container
 			return pickedItemStack;
 		}
 
-		if (action == DRAG_START_LEFT_CLICK || action == DRAG_START_RIGHT_CLICK)
-		{
-			draggedItemStack = pickedItemStack.copy();
-			dragType = action == DRAG_START_LEFT_CLICK ? DRAG_TYPE_SPREAD : DRAG_TYPE_ONE;
-			//return pickedItemStack;
-		}
-
 		//we can't insert into slot, so no need to add to list
 		if (!slot.isState(PLAYER_INSERT))
 			return pickedItemStack;
 
 		//dragged slot already contains something else
-		if (!slot.isEmpty() && !ItemUtils.areItemStacksStackable(slot.getItemStack(), draggedItemStack))
-			return pickedItemStack;
+		//		if (!slot.isEmpty() && !ItemUtils.areItemStacksStackable(slot.getItemStack(), pickedItemStack))
+		//			return pickedItemStack;
 
 		//add the current slot to the list of dragged slots
 		draggedSlots.add(slot);
 
-		if (draggedSlots.size() > draggedItemStack.getCount())
+		if (action == DRAG_START_LEFT_CLICK || action == DRAG_START_RIGHT_CLICK)
+		{
+			draggedAmount = pickedItemStack.getCount();
+			dragType = action == DRAG_START_LEFT_CLICK ? DRAG_TYPE_SPREAD : DRAG_TYPE_ONE;
+			return pickedItemStack;
+		}
+
+		if (draggedSlots.size() > draggedAmount)
 			return ItemStack.EMPTY;
 
 		// action == DRAG_ADD_SLOT
 		if (draggedSlots.size() <= 1) // do not start spreading before it's dragged at least over two slots
 			return pickedItemStack;
-		int amountPerSlot = dragType == DRAG_TYPE_SPREAD ? Math.max(draggedItemStack.getCount() / draggedSlots.size(), 1) : 1;
+		int amountPerSlot = dragType == DRAG_TYPE_SPREAD ? Math.max(draggedAmount / draggedSlots.size(), 1) : 1;
 		//int amountTotal = 0;
 
-		pickedItemStack = draggedItemStack.copy();
+		pickedItemStack.setCount(draggedAmount);
 
 		for (MalisisSlot s : draggedSlots)
 		{
@@ -813,13 +814,13 @@ public class MalisisInventoryContainer extends Container
 		if (!isDraggingItemStack())
 			return;
 
-		//if (!pickedItemStack.isEmpty())
-		pickedItemStack = draggedItemStack.copy();
+		if (!pickedItemStack.isEmpty())
+			pickedItemStack.setCount(draggedAmount);
 
 		draggedSlots.forEach(s -> s.setDraggedItemStack(ItemStack.EMPTY));
 
 		draggedSlots.clear();
-		draggedItemStack = null;
+		draggedAmount = 0;
 		dragType = -1;
 	}
 

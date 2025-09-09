@@ -28,11 +28,13 @@ import java.util.EnumSet;
 
 import org.lwjgl.input.Keyboard;
 
+import com.google.common.eventbus.Subscribe;
+
+import net.malisis.core.client.gui.Anchor;
 import net.malisis.core.client.gui.ComponentPosition;
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.container.UIContainer;
 import net.malisis.core.client.gui.component.interaction.UIButton;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Size.ISize;
 import net.malisis.core.client.gui.event.ComponentEvent;
 import net.malisis.core.util.bbcode.BBString;
 import net.malisis.core.util.bbcode.node.BBColorNode;
@@ -46,18 +48,12 @@ import net.minecraft.client.gui.GuiScreen;
  * @author Ordinastie
  *
  */
-public class BBCodeEditor extends UIContainer
+public class BBCodeEditor extends UIContainer<BBCodeEditor>
 {
 	enum Tag
 	{
-		BOLD(new BBStyleNode("b")),
-		ITALIC(new BBStyleNode("i")),
-		UNDERLINE(new BBStyleNode("u")),
-		STRIKETHOUGH(new BBStyleNode("s")),
-		SHADOW(new BBShadowNode()),
-		COLOR(new BBColorNode("color")),
-		BGCOLOR(new BBColorNode("bgcolor")),
-		ITEM(new BBItemNode(""));
+		BOLD(new BBStyleNode("b")), ITALIC(new BBStyleNode("i")), UNDERLINE(new BBStyleNode("u")), STRIKETHOUGH(new BBStyleNode("s")), SHADOW(
+				new BBShadowNode()), COLOR(new BBColorNode("color")), BGCOLOR(new BBColorNode("bgcolor")), ITEM(new BBItemNode(""));
 
 		public BBNode node;
 
@@ -67,7 +63,7 @@ public class BBCodeEditor extends UIContainer
 		}
 	};
 
-	protected UIContainer menu;
+	protected UIContainer<?> menu;
 
 	protected UIButton btnBold;
 	protected UIButton btnItalic;
@@ -83,7 +79,7 @@ public class BBCodeEditor extends UIContainer
 	protected BBTextField bbTexfield;
 
 	protected ComponentPosition menuPosition = ComponentPosition.TOP;
-	protected int buttonAnchor = 0;//Anchor.LEFT | Anchor.MIDDLE;
+	protected int buttonAnchor = Anchor.LEFT | Anchor.MIDDLE;
 
 	protected EnumSet<Tag> activeStyles = EnumSet.noneOf(Tag.class);
 
@@ -93,11 +89,13 @@ public class BBCodeEditor extends UIContainer
 
 	//private int activeColor = 0x006633;
 
-	public BBCodeEditor()
+	public BBCodeEditor(MalisisGui gui)
 	{
-		bbTexfield = new BBTextField(this);
+		super(gui);
 
-		createMenu();
+		bbTexfield = new BBTextField(gui, this);
+
+		createMenu(gui);
 
 		add(bbTexfield);
 		add(menu);
@@ -107,10 +105,10 @@ public class BBCodeEditor extends UIContainer
 		setWysiwyg(true);
 	}
 
-	public BBCodeEditor(ISize size)
+	public BBCodeEditor(MalisisGui gui, int width, int height)
 	{
-		this();
-		setSize(size);
+		this(gui);
+		setSize(width, height);
 	}
 
 	//#region Getters/Setters
@@ -167,56 +165,29 @@ public class BBCodeEditor extends UIContainer
 
 	//#end Getters/Setters
 
-	protected void createMenu()
+	protected void createMenu(MalisisGui gui)
 	{
-		menu = new UIContainer();
+		menu = new UIContainer<>(gui);
 		menu.setParent(this);
 
-		createButtons();
+		createButtons(gui);
 
 		setMenuPosition(ComponentPosition.TOP);
 	}
 
-	protected void createButtons()
+	protected void createButtons(MalisisGui gui)
 	{
-		ISize size = Size.of(10, 10);
-		btnBold = new UIButton("B");
-		btnBold.setSize(size);
-		btnBold.setTooltip("Bold");
+		int s = 10;
+		btnBold = new UIButton(gui, "B").setAutoSize(false).setSize(s, s).setTooltip("Bold").register(this);
+		btnItalic = new UIButton(gui, "I").setAutoSize(false).setSize(s, s).setTooltip("Italic").register(this);
+		btnUnderline = new UIButton(gui, "U").setAutoSize(false).setSize(s, s).setTooltip("Underline").register(this);
+		btnStrikethrough = new UIButton(gui, "S").setAutoSize(false).setSize(s, s).setTooltip("Strikethrough").register(this);
 
-		btnItalic = new UIButton("I");
-		btnItalic.setSize(size);
-		btnItalic.setTooltip("Italic");
-		btnItalic.onClick(() -> bbTexfield.addTag(Tag.ITALIC));
+		btnColor = new UIButton(gui, "C").setAutoSize(false).setSize(s, s).setTooltip("Color").register(this);
+		btnBgColor = new UIButton(gui, "BC").setAutoSize(false).setSize(16, s).setTooltip("Background Color").register(this);
+		btnItem = new UIButton(gui, "Item").setAutoSize(false).setSize(22, s).setTooltip("Item").register(this);
 
-		btnUnderline = new UIButton("U");
-		btnUnderline.setSize(size);
-		btnUnderline.setTooltip("Underline");
-		btnUnderline.onClick(() -> bbTexfield.addTag(Tag.UNDERLINE));
-
-		btnStrikethrough = new UIButton("S");
-		btnStrikethrough.setSize(size);
-		btnStrikethrough.setTooltip("Strikethrough");
-		btnStrikethrough.onClick(() -> bbTexfield.addTag(Tag.STRIKETHOUGH));
-
-		btnColor = new UIButton("C");
-		btnColor.setSize(size);
-		btnColor.setTooltip("Color");
-		btnColor.onClick(() -> bbTexfield.addTag(Tag.COLOR));
-
-		btnBgColor = new UIButton("BC");
-		btnBgColor.setSize(Size.of(16, 10));
-		btnBgColor.setTooltip("Background Color");
-		btnBgColor.onClick(() -> bbTexfield.addTag(Tag.BGCOLOR));
-
-		btnItem = new UIButton("Item");
-		btnItem.setSize(Size.of(22, 10));
-		btnItem.setTooltip("Item");
-		btnItem.onClick(() -> bbTexfield.addTag(Tag.ITEM));
-
-		btnWysiwyg = new UIButton("WYSIWYG");
-		btnWysiwyg.setSize(Size.of(45, 10));
-		btnWysiwyg.onClick(() -> setWysiwyg(!isWysiwyg()));
+		btnWysiwyg = new UIButton(gui, "WYSIWYG").setAutoSize(false).setSize(45, s).register(this);
 
 		menu.add(btnBold);
 		menu.add(btnItalic);
@@ -253,62 +224,62 @@ public class BBCodeEditor extends UIContainer
 				break;
 		}
 
-		//	bbTexfield.setPosition(x, y).setSize(w, h);
+		bbTexfield.setPosition(x, y).setSize(w, h);
 	}
 
 	protected void calculateMenuPosition()
 	{
-		//		int x = 0, y = 0, w = 0, h = 0, a = Anchor.NONE;
-		//		int s = 12;
-		//		switch (menuPosition)
-		//		{
-		//			case TOP:
-		//				h = s;
-		//				break;
-		//			case BOTTOM:
-		//				h = s;
-		//				a = Anchor.BOTTOM;
-		//				break;
-		//			case LEFT:
-		//				w = s;
-		//				break;
-		//			case RIGHT:
-		//				w = s;
-		//				a = Anchor.RIGHT;
-		//				break;
-		//		}
+		int x = 0, y = 0, w = 0, h = 0, a = Anchor.NONE;
+		int s = 12;
+		switch (menuPosition)
+		{
+			case TOP:
+				h = s;
+				break;
+			case BOTTOM:
+				h = s;
+				a = Anchor.BOTTOM;
+				break;
+			case LEFT:
+				w = s;
+				break;
+			case RIGHT:
+				w = s;
+				a = Anchor.RIGHT;
+				break;
+		}
 
-		//	menu.setPosition(x, y, a).setSize(w, h);
+		menu.setPosition(x, y, a).setSize(w, h);
 
 		calculateButtonPositions();
 	}
 
 	protected void calculateButtonPositions()
 	{
-		//		int x = 0, y = 1;
-		//		int a = Anchor.vertical(buttonAnchor) | Anchor.CENTER;
-		//		if (menuPosition.isHorizontal())
-		//		{
-		//			x = 1;
-		//			y = 0;
-		//			a = Anchor.horizontal(buttonAnchor) | Anchor.MIDDLE;
-		//		}
-		//
-		//		if (Anchor.vertical(a) == Anchor.BOTTOM)
-		//			y *= -1;
-		//		if (Anchor.horizontal(a) == Anchor.RIGHT)
-		//			x *= -1;
+		int x = 0, y = 1;
+		int a = Anchor.vertical(buttonAnchor) | Anchor.CENTER;
+		if (menuPosition.isHorizontal())
+		{
+			x = 1;
+			y = 0;
+			a = Anchor.horizontal(buttonAnchor) | Anchor.MIDDLE;
+		}
 
-		//		btnBold.setPosition(0 * x, 0 * y, a);
-		//		btnItalic.setPosition(11 * x, 11 * y, a);
-		//		btnUnderline.setPosition(22 * x, 22 * y, a);
-		//		btnStrikethrough.setPosition(33 * x, 33 * y, a);
-		//
-		//		btnColor.setPosition(44 * x + 2 * x, 44 * y + 2 * y, a);
-		//		btnBgColor.setPosition(55 * x + 2 * x, 55 * y + 2 * y, a);
-		//		btnItem.setPosition(72 * x + 2 * x, 66 * y + 2 * y, a);
-		//
-		//		btnWysiwyg.setPosition(100 * x + 2 * x, 66 * y + 2 * y, a);
+		if (Anchor.vertical(a) == Anchor.BOTTOM)
+			y *= -1;
+		if (Anchor.horizontal(a) == Anchor.RIGHT)
+			x *= -1;
+
+		btnBold.setPosition(0 * x, 0 * y, a);
+		btnItalic.setPosition(11 * x, 11 * y, a);
+		btnUnderline.setPosition(22 * x, 22 * y, a);
+		btnStrikethrough.setPosition(33 * x, 33 * y, a);
+
+		btnColor.setPosition(44 * x + 2 * x, 44 * y + 2 * y, a);
+		btnBgColor.setPosition(55 * x + 2 * x, 55 * y + 2 * y, a);
+		btnItem.setPosition(72 * x + 2 * x, 66 * y + 2 * y, a);
+
+		btnWysiwyg.setPosition(100 * x + 2 * x, 66 * y + 2 * y, a);
 	}
 
 	public boolean isStyleActive(Tag s)
@@ -319,6 +290,37 @@ public class BBCodeEditor extends UIContainer
 	public String getFormattedText()
 	{
 		return null;
+	}
+
+	@Subscribe
+	public void onClick(UIButton.ClickEvent event)
+	{
+		UIButton button = event.getComponent();
+		//boolean active = false;
+		if (button == btnBold)
+			bbTexfield.addTag(Tag.BOLD);
+		else if (button == btnItalic)
+			bbTexfield.addTag(Tag.ITALIC);
+		else if (button == btnUnderline)
+			bbTexfield.addTag(Tag.UNDERLINE);
+		else if (button == btnStrikethrough)
+			bbTexfield.addTag(Tag.STRIKETHOUGH);
+
+		else if (button == btnColor)
+			bbTexfield.addTag(Tag.COLOR);
+		else if (button == btnBgColor)
+			bbTexfield.addTag(Tag.BGCOLOR);
+		else if (button == btnItem)
+			bbTexfield.addTag(Tag.ITEM);
+
+		else if (button == btnWysiwyg)
+		{
+			setWysiwyg(!isWysiwyg());
+			return;
+		}
+
+		//button.setTextColor(active ? activeColor : defaultColor);
+		bbTexfield.setFocused(true);
 	}
 
 	@Override
@@ -354,7 +356,7 @@ public class BBCodeEditor extends UIContainer
 		if (button != null)
 		{
 			//button.setTextColor(active ? 0x66CC77 : defaultColor);
-			//button.setBgColor(active ? 0xBBFFCC : defaultColor);
+			button.setBgColor(active ? 0xBBFFCC : defaultColor);
 		}
 
 		return true;

@@ -37,7 +37,7 @@ import java.util.function.Supplier;
  * @author Ordinastie
  * @param <T> the generic type
  */
-public class CachedData<T> implements ICachedData<T>
+public class CachedData<T> implements ICachedData
 {
 	/** Supplier to fetch the current data. */
 	protected Supplier<T> getter;
@@ -69,7 +69,7 @@ public class CachedData<T> implements ICachedData<T>
 	 */
 	public CachedData(Supplier<T> getter)
 	{
-		this(getter, (o1, o2) -> !Objects.equals(o1, o2));
+		this(getter, Objects::equals);
 	}
 
 	/**
@@ -77,7 +77,6 @@ public class CachedData<T> implements ICachedData<T>
 	 *
 	 * @return the t
 	 */
-	@Override
 	public T get()
 	{
 		return currentData;

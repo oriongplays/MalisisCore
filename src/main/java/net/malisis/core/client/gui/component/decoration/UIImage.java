@@ -24,15 +24,13 @@
 
 package net.malisis.core.client.gui.component.decoration;
 
-import org.apache.commons.lang3.ObjectUtils;
-
+import net.malisis.core.client.gui.GuiRenderer;
+import net.malisis.core.client.gui.GuiTexture;
+import net.malisis.core.client.gui.MalisisGui;
 import net.malisis.core.client.gui.component.UIComponent;
-import net.malisis.core.client.gui.element.size.Size;
-import net.malisis.core.client.gui.element.size.Size.ISize;
-import net.malisis.core.client.gui.render.GuiIcon;
-import net.malisis.core.client.gui.render.IGuiRenderer;
-import net.malisis.core.client.gui.render.shape.GuiShape;
+import net.malisis.core.client.gui.element.SimpleGuiShape;
 import net.malisis.core.renderer.icon.Icon;
+import net.malisis.core.renderer.icon.provider.GuiIconProvider;
 import net.minecraft.item.ItemStack;
 
 /**
@@ -40,37 +38,51 @@ import net.minecraft.item.ItemStack;
  *
  * @author Ordinastie
  */
-public class UIImage extends UIComponent
+public class UIImage extends UIComponent<UIImage>
 {
-	/** Fixed size of ItemStack UIImages. */
-	private final ISize ITEMSTACK_SIZE = Size.of(16, 16);
-	/** {@link GuiIcon} to use for the texture. */
-	private GuiIcon icon = null;
+	/** {@link GuiTexture} to use for the icon. */
+	private GuiTexture texture;
+	/** {@link Icon} to use for the texture. */
+	private Icon icon = null;
 	/** {@link ItemStack} to render. */
 	private ItemStack itemStack;
 
-	private final IGuiRenderer ICON_RENDER = GuiShape.builder(this).icon(this::getIcon).build();
-	private final IGuiRenderer IS_RENDER = (r) -> r.drawItemStack(itemStack);
-
 	/**
 	 * Instantiates a new {@link UIImage}.
-	 * 
+	 *
+	 * @param gui the gui
+	 * @param texture the texture
 	 * @param icon the icon
 	 */
-	public UIImage(GuiIcon icon)
+	public UIImage(MalisisGui gui, GuiTexture texture, Icon icon)
 	{
-		setIcon(icon);
-		setSize(ITEMSTACK_SIZE);
+		super(gui);
+
+		iconProvider = new GuiIconProvider(null);
+
+		setIcon(texture, icon);
+		setSize(16, 16);
+
+		shape = new SimpleGuiShape();
+		iconProvider = new GuiIconProvider(null);
 	}
 
 	/**
 	 * Instantiates a new {@link UIImage}.
-	 * 
+	 *
+	 * @param gui the gui
 	 * @param itemStack the item stack
 	 */
-	public UIImage(ItemStack itemStack)
+	public UIImage(MalisisGui gui, ItemStack itemStack)
 	{
+		super(gui);
+
+		iconProvider = new GuiIconProvider(null);
+
 		setItemStack(itemStack);
+		setSize(16, 16);
+
+		shape = new SimpleGuiShape();
 	}
 
 	/**
@@ -79,11 +91,25 @@ public class UIImage extends UIComponent
 	 * @param icon the icon
 	 * @return this UIImage
 	 */
-	public UIImage setIcon(GuiIcon icon)
+	public UIImage setIcon(Icon icon)
 	{
 		this.itemStack = null;
-		this.icon = icon;
-		setForeground(ICON_RENDER);
+		this.icon = icon != null ? icon : new Icon();
+		return this;
+	}
+
+	/**
+	 * Sets the icon for this {@link UIImage} to be used with the specified {@link GuiTexture}.
+	 *
+	 * @param texture the texture
+	 * @param icon the icon
+	 * @return this UIImage
+	 */
+	public UIImage setIcon(GuiTexture texture, Icon icon)
+	{
+		this.itemStack = null;
+		this.icon = icon != null ? icon : new Icon();
+		this.texture = texture;
 		return this;
 	}
 
@@ -96,9 +122,9 @@ public class UIImage extends UIComponent
 	public UIImage setItemStack(ItemStack itemStack)
 	{
 		this.icon = null;
+		this.texture = null;
 		this.itemStack = itemStack;
-		setSize(ITEMSTACK_SIZE);
-		setForeground(IS_RENDER);
+		setSize(16, 16);
 		return this;
 	}
 
@@ -107,9 +133,19 @@ public class UIImage extends UIComponent
 	 *
 	 * @return the icon
 	 */
-	public GuiIcon getIcon()
+	public Icon getIcon()
 	{
-		return icon;
+		return iconProvider.getIcon();
+	}
+
+	/**
+	 * Gets the {@link GuiTexture} for this {@link UIImage}.
+	 *
+	 * @return the texture
+	 */
+	public GuiTexture getTexture()
+	{
+		return texture;
 	}
 
 	/**
@@ -126,21 +162,44 @@ public class UIImage extends UIComponent
 	 * Sets the size for this {@link UIImage}.<br>
 	 * Has no effect if rendering an {@link ItemStack}.
 	 *
-	 * @param size the new size
+	 * @param width the width
+	 * @param height the height
+	 * @return the UI image
 	 */
 	@Override
-	public void setSize(ISize size)
+	public UIImage setSize(int width, int height)
 	{
-		//UIImage for itemStack have a fixed 16*16 size
 		if (itemStack != null)
-			size = ITEMSTACK_SIZE;
-		super.setSize(size);
+		{
+			width = 16;//UIImage for itemStack have a fixed 16*16 size
+			height = 16;
+		}
+		return super.setSize(width, height);
+	}
+
+	@Override
+	public void drawBackground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{}
+
+	@Override
+	public void drawForeground(GuiRenderer renderer, int mouseX, int mouseY, float partialTick)
+	{
+		if (icon != null)
+		{
+			((GuiIconProvider) iconProvider).setIcon(icon);
+			renderer.bindTexture(texture);
+			renderer.drawShape(shape, rp);
+		}
+		else if (itemStack != null)
+		{
+			renderer.drawItemStack(itemStack);
+		}
 	}
 
 	@Override
 	public String getPropertyString()
 	{
-		return ObjectUtils.firstNonNull(itemStack, icon) + " " + super.getPropertyString();
+		return (itemStack != null ? itemStack : ("texture : " + this.texture + ", " + " icon : " + icon)) + super.getPropertyString();
 	}
 
 }
